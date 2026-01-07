@@ -1,0 +1,180 @@
+# LoraMint Quick Start Guide
+
+Get LoraMint up and running in just a few steps!
+
+## 🎯 One-Command Start
+
+### Option 1: Automatic Setup (Recommended)
+
+The Blazor application will automatically set up and start the Python backend for you.
+
+**Linux/macOS:**
+```bash
+./start.sh
+```
+
+**Windows:**
+```cmd
+start.bat
+```
+
+That's it! The application will:
+1. ✅ Check for .NET SDK and Python
+2. 📦 Create Python virtual environment (if needed)
+3. 📥 Install all dependencies (if needed)
+4. 🚀 Start both the Blazor web app and Python backend
+5. 🌐 Open the app at `https://localhost:5001`
+
+## 🔧 Manual Setup (Optional)
+
+If you prefer to set up the Python environment manually first:
+
+**Linux/macOS:**
+```bash
+./setup-python.sh
+./start.sh
+```
+
+**Windows:**
+```cmd
+setup-python.bat
+start.bat
+```
+
+## 📋 What Happens on First Run?
+
+The first time you run LoraMint, it will:
+
+1. **Create Virtual Environment** (~30 seconds)
+   - Creates an isolated Python environment
+
+2. **Install Dependencies** (~2-5 minutes)
+   - Installs PyTorch, diffusers, FastAPI, etc.
+
+3. **Download AI Models** (~5-10 minutes, only when first generating)
+   - Downloads Stable Diffusion XL (~6GB)
+   - Only happens when you generate your first image
+
+**Total first-run time:** ~3-5 minutes (excluding model download)
+
+## 🎨 Using the Application
+
+Once started, open your browser to `https://localhost:5001`
+
+### Generate Your First Image
+
+1. Go to **Generate** page
+2. Enter a prompt (e.g., "a serene mountain landscape at sunset")
+3. Click **Generate Image**
+4. Wait ~30-60 seconds for generation
+5. View your image!
+
+### Train Your First LoRA
+
+1. Go to **Train LoRA** page
+2. Enter a name (e.g., "my_style")
+3. Upload 1-5 reference images
+4. Click **Start Training**
+5. Wait for training to complete
+6. Use your LoRA in future generations!
+
+## ⚙️ Configuration
+
+### Disable Auto-Start
+
+Edit `src/LoraMint.Web/appsettings.json`:
+
+```json
+{
+  "PythonBackend": {
+    "AutoStart": false
+  }
+}
+```
+
+Then start Python manually:
+```bash
+cd src/python-backend
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python main.py
+```
+
+### Change Python Backend Path
+
+Edit `src/LoraMint.Web/appsettings.json`:
+
+```json
+{
+  "PythonBackend": {
+    "Path": "/path/to/your/python-backend"
+  }
+}
+```
+
+### Disable Auto-Install Dependencies
+
+Edit `src/LoraMint.Web/appsettings.json`:
+
+```json
+{
+  "PythonBackend": {
+    "AutoInstallDependencies": false
+  }
+}
+```
+
+## 🐳 Using Docker Instead
+
+If you prefer Docker:
+
+```bash
+docker-compose up --build
+```
+
+Access the app at `http://localhost:5001`
+
+## 🚨 Troubleshooting
+
+### Python not found
+- Install Python 3.10+ from https://www.python.org/downloads/
+- Make sure it's in your PATH
+
+### .NET SDK not found
+- Install .NET 8.0 SDK from https://dotnet.microsoft.com/download
+
+### Port 8000 already in use
+- Another process is using port 8000
+- Change the port in `src/python-backend/main.py`:
+  ```python
+  uvicorn.run(app, host="0.0.0.0", port=8001)  # Change to 8001
+  ```
+- Update `appsettings.json`:
+  ```json
+  {
+    "PythonBackend": {
+      "BaseUrl": "http://localhost:8001"
+    }
+  }
+  ```
+
+### GPU not detected
+- Install CUDA toolkit if you have an NVIDIA GPU
+- Otherwise, CPU will be used (much slower)
+- Check GPU status at `http://localhost:8000/health`
+
+### Dependencies fail to install
+- Check your internet connection
+- Try manual setup: `./setup-python.sh` or `setup-python.bat`
+- Check Python version: `python --version` (should be 3.10+)
+
+## 📚 Next Steps
+
+- Read the full [README.md](README.md)
+- Check [PROJECT_INSTRUCTIONS.md](PROJECT_INSTRUCTIONS.md) for details
+- Explore the API docs at `http://localhost:8000/docs`
+- View Python backend README at `src/python-backend/README.md`
+- View Blazor web README at `src/LoraMint.Web/README.md`
+
+## 🎉 Enjoy!
+
+You're all set to start generating amazing AI images with custom LoRAs!

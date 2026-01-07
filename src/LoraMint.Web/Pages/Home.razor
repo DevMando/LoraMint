@@ -1,0 +1,49 @@
+@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h1>Welcome to LoraMint</h1>
+
+<p class="lead">AI-Powered Image Generation with Custom LoRA Training</p>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Generate Images</h5>
+                <p class="card-text">Create stunning images from text prompts using Stable Diffusion with optional LoRA models.</p>
+                <a href="/generate" class="btn btn-primary">Start Generating</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Train Custom LoRAs</h5>
+                <p class="card-text">Upload your reference images to train personalized LoRA adapters for unique styles.</p>
+                <a href="/train-lora" class="btn btn-success">Train LoRA</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">My Images</h5>
+                <p class="card-text">Browse and manage your generated images.</p>
+                <a href="/my-images" class="btn btn-info">View Gallery</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">My LoRAs</h5>
+                <p class="card-text">View and manage your trained LoRA models.</p>
+                <a href="/my-loras" class="btn btn-warning">View LoRAs</a>
+            </div>
+        </div>
+    </div>
+</div>

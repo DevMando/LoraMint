@@ -1,0 +1,128 @@
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Optional
+import uvicorn
+import os
+from pathlib import Path
+
+from models.request_models import GenerateRequest
+from services.image_generator import ImageGenerator
+from services.lora_trainer import LoraTrainer
+from utils.file_handler import FileHandler
+
+app = FastAPI(title="LoraMint Python Backend", version="1.0.0")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize services
+image_generator = ImageGenerator()
+lora_trainer = LoraTrainer()
+file_handler = FileHandler()
+
+@app.get("/")
+async def root():
+    return {"message": "LoraMint Python Backend API", "status": "running"}
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "gpu_available": image_generator.is_gpu_available()}
+
+@app.post("/generate")
+async def generate_image(request: GenerateRequest):
+    """
+    Generate an image using Stable Diffusion with optional LoRA models
+    """
+    try:
+        # Generate the image
+        image_path = await image_generator.generate(
+            prompt=request.prompt,
+            user_id=request.userId,
+            loras=request.loras
+        )
+
+        return JSONResponse(content={
+            "success": True,
+            "image_path": image_path,
+            "message": "Image generated successfully"
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/train-lora")
+async def train_lora(
+    lora_name: str = Form(...),
+    user_id: str = Form(...),
+    images: List[UploadFile] = File(...)
+):
+    """
+    Train a LoRA model using uploaded reference images
+    """
+    try:
+        # Validate inputs
+        if not images or len(images) == 0:
+            raise HTTPException(status_code=400, detail="At least one image is required")
+
+        if len(images) > 5:
+            raise HTTPException(status_code=400, detail="Maximum 5 images allowed")
+
+        # Save uploaded images temporarily
+        temp_image_paths = await file_handler.save_temp_images(images)
+
+        # Train the LoRA
+        lora_path = await lora_trainer.train(
+            lora_name=lora_name,
+            user_id=user_id,
+            image_paths=temp_image_paths
+        )
+
+        # Clean up temporary files
+        file_handler.cleanup_temp_files(temp_image_paths)
+
+        return JSONResponse(content={
+            "success": True,
+            "lora_path": lora_path,
+            "message": f"LoRA '{lora_name}' trained successfully"
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/loras/{user_id}")
+async def list_user_loras(user_id: str):
+    """
+    List all LoRA models for a specific user
+    """
+    try:
+        loras = file_handler.get_user_loras(user_id)
+        return JSONResponse(content={
+            "success": True,
+            "loras": loras
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/images/{user_id}")
+async def list_user_images(user_id: str):
+    """
+    List all generated images for a specific user
+    """
+    try:
+        images = file_handler.get_user_images(user_id)
+        return JSONResponse(content={
+            "success": True,
+            "images": images
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

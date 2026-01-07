@@ -1,0 +1,183 @@
+@page "/generate"
+@using LoraMint.Web.Models
+@using LoraMint.Web.Services
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<PageTitle>Generate Image</PageTitle>
+
+<h1>Generate Image</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="prompt" class="form-label">Prompt</label>
+                    <textarea class="form-control" id="prompt" rows="4" @bind="prompt" placeholder="Describe the image you want to generate..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="userId" class="form-label">User ID</label>
+                    <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Select LoRAs (Optional)</label>
+                    @if (availableLoras.Any())
+                    {
+                        @foreach (var lora in availableLoras)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="@lora.FileName" id="lora-@lora.FileName"
+                                       @onchange="@((e) => ToggleLora(lora.FileName, (bool)e.Value!))">
+                                <label class="form-check-label" for="lora-@lora.FileName">
+                                    @lora.Name
+                                </label>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted">No LoRAs available. Train one first!</p>
+                    }
+                </div>
+
+                <button class="btn btn-primary" @onclick="GenerateImage" disabled="@isGenerating">
+                    @if (isGenerating)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Generating...</span>
+                    }
+                    else
+                    {
+                        <span>Generate Image</span>
+                    }
+                </button>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger mt-3">@errorMessage</div>
+                }
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success mt-3">@successMessage</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        @if (!string.IsNullOrEmpty(generatedImagePath))
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Generated Image</h5>
+                    <img src="@generatedImagePath" class="img-fluid" alt="Generated image" />
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string prompt = string.Empty;
+    private string userId = "user123"; // Default for testing
+    private bool isGenerating = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string generatedImagePath = string.Empty;
+    private List<LoraInfo> availableLoras = new();
+    private Dictionary<string, double> selectedLoras = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLoras();
+    }
+
+    private async Task LoadLoras()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ApiResponse<List<LoraInfo>>>($"/api/loras/{userId}");
+            if (response?.Success == true && response.Loras != null)
+            {
+                availableLoras = response.Loras;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load LoRAs: {ex.Message}";
+        }
+    }
+
+    private void ToggleLora(string fileName, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedLoras[fileName] = 1.0; // Default strength
+        }
+        else
+        {
+            selectedLoras.Remove(fileName);
+        }
+    }
+
+    private async Task GenerateImage()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            errorMessage = "Please enter a prompt";
+            return;
+        }
+
+        isGenerating = true;
+
+        try
+        {
+            var request = new GenerateRequest
+            {
+                Prompt = prompt,
+                UserId = userId,
+                Loras = selectedLoras.Select(kvp => new LoraReference
+                {
+                    File = kvp.Key,
+                    Strength = kvp.Value
+                }).ToList()
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/generate", request);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
+
+            if (result?.Success == true)
+            {
+                generatedImagePath = result.ImageData ?? string.Empty;
+                successMessage = "Image generated successfully!";
+            }
+            else
+            {
+                errorMessage = result?.Error ?? "Failed to generate image";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isGenerating = false;
+        }
+    }
+
+    private class ApiResponse<T>
+    {
+        public bool Success { get; set; }
+        public T? Loras { get; set; }
+        public T? ImageData { get; set; }
+        public string? Error { get; set; }
+    }
+}

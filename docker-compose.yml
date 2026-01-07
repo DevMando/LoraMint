@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  python-backend:
+    build:
+      context: ./src/python-backend
+      dockerfile: Dockerfile
+    container_name: loramint-python-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  blazor-web:
+    build:
+      context: ./src/LoraMint.Web
+      dockerfile: Dockerfile
+    container_name: loramint-blazor-web
+    ports:
+      - "5001:80"
+    environment:
+      - PythonBackend__BaseUrl=http://python-backend:8000
+      - ASPNETCORE_ENVIRONMENT=Production
+    depends_on:
+      - python-backend
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  data:

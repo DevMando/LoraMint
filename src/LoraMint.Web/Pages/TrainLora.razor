@@ -1,0 +1,165 @@
+@page "/train-lora"
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<PageTitle>Train LoRA</PageTitle>
+
+<h1>Train LoRA</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="loraName" class="form-label">LoRA Name</label>
+                    <input type="text" class="form-control" id="loraName" @bind="loraName" placeholder="e.g., anime_style_v1" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="userId" class="form-label">User ID</label>
+                    <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="imageFiles" class="form-label">Upload Reference Images (1-5 images)</label>
+                    <InputFile OnChange="HandleFileSelection" class="form-control" multiple accept="image/*" />
+                    <small class="form-text text-muted">Upload 1 to 5 reference images for training</small>
+                </div>
+
+                @if (selectedFiles.Any())
+                {
+                    <div class="mb-3">
+                        <h6>Selected Files:</h6>
+                        <ul>
+                            @foreach (var file in selectedFiles)
+                            {
+                                <li>@file.Name (@(file.Size / 1024) KB)</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <button class="btn btn-success" @onclick="TrainLora" disabled="@isTraining">
+                    @if (isTraining)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Training...</span>
+                    }
+                    else
+                    {
+                        <span>Start Training</span>
+                    }
+                </button>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger mt-3">@errorMessage</div>
+                }
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success mt-3">@successMessage</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Training Tips</h5>
+                <ul>
+                    <li>Upload 1-5 high-quality reference images</li>
+                    <li>Images should be clear and well-lit</li>
+                    <li>Use consistent subject matter</li>
+                    <li>Training may take several minutes</li>
+                    <li>Name your LoRA descriptively</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string loraName = string.Empty;
+    private string userId = "user123"; // Default for testing
+    private bool isTraining = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private List<IBrowserFile> selectedFiles = new();
+
+    private void HandleFileSelection(InputFileChangeEventArgs e)
+    {
+        selectedFiles = e.GetMultipleFiles(5).ToList();
+        errorMessage = string.Empty;
+
+        if (selectedFiles.Count > 5)
+        {
+            errorMessage = "Maximum 5 files allowed";
+            selectedFiles = selectedFiles.Take(5).ToList();
+        }
+    }
+
+    private async Task TrainLora()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(loraName))
+        {
+            errorMessage = "Please enter a LoRA name";
+            return;
+        }
+
+        if (!selectedFiles.Any())
+        {
+            errorMessage = "Please select at least one image";
+            return;
+        }
+
+        isTraining = true;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(loraName), "loraName");
+            content.Add(new StringContent(userId), "userId");
+
+            foreach (var file in selectedFiles)
+            {
+                var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)); // 10MB max
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "images", file.Name);
+            }
+
+            var response = await Http.PostAsync("/api/train-lora", content);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse>();
+
+            if (result?.Success == true)
+            {
+                successMessage = $"LoRA '{loraName}' trained successfully! Path: {result.Result}";
+                loraName = string.Empty;
+                selectedFiles.Clear();
+            }
+            else
+            {
+                errorMessage = result?.Error ?? "Failed to train LoRA";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isTraining = false;
+        }
+    }
+
+    private class ApiResponse
+    {
+        public bool Success { get; set; }
+        public string? Result { get; set; }
+        public string? Error { get; set; }
+    }
+}

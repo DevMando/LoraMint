@@ -1,41 +1,327 @@
-**LoRA Mint** 
-Train it once. Style it forever. Prompt, mint, and create with your own visual signature.
+# LoRA Mint
 
-This a full-stack web application that lets users:
-- Prompt a diffusion model to generate images
-- Upload images to train custom LoRA adapters
-- Apply trained LoRAs to future generations
-- View and manage image outputs + LoRA files
+**Train it once. Style it forever.** Prompt, mint, and create with your own visual signature.
+
+A full-stack web application that lets users:
+- Generate images from text prompts using Stable Diffusion
+- Upload reference images to train custom LoRA adapters
+- Apply trained LoRAs to future image generations
+- View and manage image outputs and LoRA files
 
 ---
 
 ## 🧱 Tech Stack
 
-| Layer     | Tech                     |
-|-----------|--------------------------|
-| Frontend  | Blazor Server (C#)        |
-| Backend   | Minimal API (C#)          |
-| AI Engine | Python (FastAPI)          |
-| Models    | Stable Diffusion, SDXL, Turbo |
-| LoRA      | Kohya Trainer / PEFT     |
-| Format    | `.safetensors`           |
-| Storage   | Local or Azure Blob      |
+| Layer     | Technology                |
+|-----------|---------------------------|
+| Frontend  | Blazor Server (C#)         |
+| Backend   | ASP.NET Core Minimal APIs  |
+| AI Engine | Python (FastAPI)           |
+| Models    | Stable Diffusion XL        |
+| LoRA      | PEFT / Kohya Trainer       |
+| Format    | `.safetensors`             |
+| Storage   | Local File System          |
 
 ---
 
 ## 🚀 How It Works
 
-1. User enters a prompt → image is generated via Python
-2. User uploads reference images → LoRA is trained and saved as `.safetensors`
-3. Prompt + LoRA = stylized image generation
-4. LoRA and images are saved per user
+1. **Generate**: User enters a prompt → Python backend generates image using Stable Diffusion
+2. **Train**: User uploads 1-5 reference images → LoRA model is trained and saved as `.safetensors`
+3. **Apply**: User selects trained LoRA(s) → Generates stylized images with custom style
+4. **Manage**: All LoRAs and images are organized per user for easy access
 
 ---
 
-## 🔄 Local Dev Setup
+## 📁 Project Structure
 
-### .NET + Blazor
+```
+LoraMint/
+├── src/
+│   ├── LoraMint.Web/              # Blazor Server application
+│   │   ├── Components/            # Blazor components
+│   │   ├── Models/                # Data models
+│   │   ├── Pages/                 # Razor pages
+│   │   ├── Services/              # C# services
+│   │   └── Program.cs             # Minimal API endpoints
+│   │
+│   └── python-backend/            # Python FastAPI backend
+│       ├── models/                # Pydantic models
+│       ├── services/              # AI services
+│       │   ├── image_generator.py # SD image generation
+│       │   └── lora_trainer.py    # LoRA training
+│       ├── utils/                 # Utilities
+│       └── main.py                # FastAPI application
+│
+├── data/                          # Storage (gitignored)
+│   ├── loras/                     # User LoRA models
+│   ├── outputs/                   # Generated images
+│   └── temp/                      # Temporary files
+│
+├── PROJECT_INSTRUCTIONS.md        # Detailed specifications
+├── docker-compose.yml             # Docker orchestration
+└── README.md                      # This file
+```
+
+---
+
+## 🔄 Local Development Setup
+
+### Prerequisites
+
+- .NET 8.0 SDK
+- Python 3.10+
+- CUDA-capable GPU (recommended)
+- 16GB+ RAM
+
+### Quick Start (Recommended)
+
+The Blazor application **automatically sets up and starts the Python backend** for you!
+
+**Linux/macOS:**
+```bash
+./start.sh
+```
+
+**Windows:**
+```cmd
+start.bat
+```
+
+That's it! The application will:
+1. Create Python virtual environment (if needed)
+2. Install dependencies (if needed)
+3. Start the Python backend
+4. Start the Blazor web application
+
+Access the app at `https://localhost:5001`
+
+📖 **See [QUICKSTART.md](QUICKSTART.md) for detailed first-run instructions**
+
+### Manual Setup (Optional)
+
+If you prefer manual control:
+
+#### 1. Setup Python Environment
+
+**Linux/macOS:**
+```bash
+./setup-python.sh
+```
+
+**Windows:**
+```cmd
+setup-python.bat
+```
+
+Or manually:
+```bash
+cd src/python-backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+#### 2. Start Applications
+
+**Option A:** Use startup script (auto-starts Python backend)
+```bash
+./start.sh  # or start.bat on Windows
+```
+
+**Option B:** Start manually in separate terminals
+
+Terminal 1 - Python Backend:
+```bash
+cd src/python-backend
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+python main.py
+```
+
+Terminal 2 - Blazor Web:
+```bash
+cd src/LoraMint.Web
+dotnet run
+```
+
+#### 3. Access the Application
+
+Open your browser and navigate to:
+- Web UI: `https://localhost:5001`
+- Python API Docs: `http://localhost:8000/docs`
+
+---
+
+## 🐳 Docker Deployment
+
+### Using Docker Compose
 
 ```bash
-cd LoRAMint.Blazor
-dotnet run
+# Build and run all services
+docker-compose up --build
+
+# Run in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+Services will be available at:
+- Web UI: `http://localhost:5001`
+- Python API: `http://localhost:8000`
+
+---
+
+## 📖 API Documentation
+
+### Blazor Minimal APIs
+
+- `POST /api/generate` - Generate an image from a prompt
+- `POST /api/train-lora` - Train a new LoRA model
+- `GET /api/loras/{userId}` - List user's LoRA models
+- `GET /api/images/{userId}` - List user's generated images
+
+### Python FastAPI Endpoints
+
+- `POST /generate` - Generate image using Stable Diffusion
+- `POST /train-lora` - Train LoRA model
+- `GET /loras/{user_id}` - Get user's LoRAs
+- `GET /images/{user_id}` - Get user's images
+- `GET /health` - Health check and GPU status
+
+For detailed API documentation, visit `http://localhost:8000/docs` after starting the Python backend.
+
+---
+
+## 🎨 Features
+
+### Image Generation
+- Text-to-image using Stable Diffusion XL
+- Optional LoRA model application
+- Multiple LoRAs with adjustable strength
+- Real-time generation feedback
+
+### LoRA Training
+- Upload 1-5 reference images
+- Custom naming for organization
+- Automatic .safetensors format
+- Per-user storage
+
+### Gallery Management
+- Browse all generated images
+- View generation metadata
+- Filter by date
+- Download images
+
+### LoRA Library
+- List all trained models
+- View file information
+- Quick access for generation
+- Delete unwanted models
+
+---
+
+## 🔧 Configuration
+
+### Blazor Web (`src/LoraMint.Web/appsettings.json`)
+
+```json
+{
+  "PythonBackend": {
+    "BaseUrl": "http://localhost:8000",
+    "Path": "../python-backend",
+    "AutoStart": true,
+    "AutoInstallDependencies": true
+  },
+  "Storage": {
+    "LorasPath": "../../../data/loras",
+    "OutputsPath": "../../../data/outputs"
+  }
+}
+```
+
+**Configuration Options:**
+- `AutoStart`: Automatically start Python backend (default: `true`)
+- `AutoInstallDependencies`: Auto-install Python packages (default: `true`)
+- `Path`: Path to Python backend directory
+- `BaseUrl`: Python backend API URL
+
+### Python Backend (`src/python-backend/main.py`)
+
+- Model selection (SDXL, SD Turbo, etc.)
+- Generation parameters
+- Storage paths
+- GPU settings
+
+---
+
+## 🚧 Development Status
+
+### ✅ Implemented
+- Blazor Server UI with all pages
+- ASP.NET Core Minimal APIs
+- FastAPI backend structure
+- Image generation pipeline
+- File storage system
+- Docker support
+- **Automatic Python backend startup**
+- **One-command setup and launch**
+- Cross-platform startup scripts
+
+### 🔨 In Progress
+- Full LoRA training implementation (currently placeholder)
+- User authentication
+- Image metadata persistence
+
+### 📋 Planned
+- Real-time generation progress (SignalR)
+- LoRA stacking UI with sliders
+- Azure Blob Storage support
+- Batch generation
+- LoRA marketplace
+
+---
+
+## 📚 Additional Documentation
+
+- [Project Instructions](PROJECT_INSTRUCTIONS.md) - Detailed specifications
+- [Python Backend README](src/python-backend/README.md) - Python setup guide
+- [Blazor Web README](src/LoraMint.Web/README.md) - .NET setup guide
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Stable Diffusion by Stability AI
+- diffusers library by Hugging Face
+- PEFT for LoRA implementation
+- Blazor framework by Microsoft
+
+---
+
+## 📞 Support
+
+For issues and questions:
+- Open an issue on GitHub
+- Check existing documentation
+- Review API documentation at `/docs`

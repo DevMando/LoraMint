@@ -1,0 +1,129 @@
+@page "/my-loras"
+@using LoraMint.Web.Models
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<PageTitle>My LoRAs</PageTitle>
+
+<h1>My LoRAs</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="mb-3">
+            <label for="userId" class="form-label">User ID</label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
+                <button class="btn btn-primary" @onclick="LoadLoras">Load LoRAs</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (loras.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>File Name</th>
+                            <th>Size</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var lora in loras)
+                        {
+                            <tr>
+                                <td>@lora.Name</td>
+                                <td>@lora.FileName</td>
+                                <td>@FormatFileSize(lora.FileSize)</td>
+                                <td>@lora.CreatedAt.ToString("g")</td>
+                                <td>
+                                    <a href="/generate" class="btn btn-sm btn-primary">Use in Generation</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                No LoRAs found. Train your first LoRA!
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string userId = "user123"; // Default for testing
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private List<LoraInfo> loras = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLoras();
+    }
+
+    private async Task LoadLoras()
+    {
+        errorMessage = string.Empty;
+        isLoading = true;
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ApiResponse>($"/api/loras/{userId}");
+            if (response?.Success == true && response.Loras != null)
+            {
+                loras = response.Loras;
+            }
+            else
+            {
+                errorMessage = response?.Error ?? "Failed to load LoRAs";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    private class ApiResponse
+    {
+        public bool Success { get; set; }
+        public List<LoraInfo>? Loras { get; set; }
+        public string? Error { get; set; }
+    }
+}

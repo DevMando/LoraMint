@@ -1,0 +1,107 @@
+@page "/my-images"
+@using LoraMint.Web.Models
+@inject HttpClient Http
+@rendermode InteractiveServer
+
+<PageTitle>My Images</PageTitle>
+
+<h1>My Images</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="mb-3">
+            <label for="userId" class="form-label">User ID</label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
+                <button class="btn btn-primary" @onclick="LoadImages">Load Images</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (images.Any())
+        {
+            <div class="row row-cols-1 row-cols-md-3 g-4">
+                @foreach (var image in images)
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <img src="@image.Url" class="card-img-top" alt="@image.FileName">
+                            <div class="card-body">
+                                <h6 class="card-title">@image.FileName</h6>
+                                @if (!string.IsNullOrEmpty(image.Prompt))
+                                {
+                                    <p class="card-text"><small>@image.Prompt</small></p>
+                                }
+                                <p class="card-text"><small class="text-muted">@image.CreatedAt.ToString("g")</small></p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                No images found. Generate some images first!
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string userId = "user123"; // Default for testing
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private List<ImageInfo> images = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadImages();
+    }
+
+    private async Task LoadImages()
+    {
+        errorMessage = string.Empty;
+        isLoading = true;
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<ApiResponse>($"/api/images/{userId}");
+            if (response?.Success == true && response.Images != null)
+            {
+                images = response.Images;
+            }
+            else
+            {
+                errorMessage = response?.Error ?? "Failed to load images";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private class ApiResponse
+    {
+        public bool Success { get; set; }
+        public List<ImageInfo>? Images { get; set; }
+        public string? Error { get; set; }
+    }
+}
