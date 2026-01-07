@@ -50,8 +50,13 @@ Build a full-stack web application that allows users to:
 ### Dependencies
 
 ```bash
-pip install fastapi uvicorn diffusers transformers peft safetensors torch accelerate
+pip install fastapi==0.109.0 uvicorn[standard]==0.27.0 python-multipart==0.0.6
+pip install torch==2.2.0 torchvision==0.17.0
+pip install diffusers==0.30.0 transformers==4.44.0 accelerate==0.34.0
+pip install safetensors==0.4.5 peft==0.13.0 pillow==10.4.0 numpy==1.26.4
 ```
+
+**Note:** These versions are tested and compatible. The application automatically installs them via `requirements.txt`.
 
 ## BLAZOR SERVER RESPONSIBILITIES
 

@@ -149,6 +149,21 @@ When the Blazor app starts:
 
 To disable automatic startup, set `AutoStart: false` and run this backend manually.
 
+## Dependencies
+
+The following packages are automatically installed:
+- **FastAPI** (0.109.0) - Web framework
+- **Uvicorn** (0.27.0) - ASGI server
+- **PyTorch** (2.2.0) - Deep learning framework (~200MB)
+- **Torchvision** (0.17.0) - Computer vision models
+- **Diffusers** (0.30.0) - Stable Diffusion pipeline
+- **Transformers** (4.44.0) - AI model library
+- **Accelerate** (0.34.0) - Training acceleration
+- **Safetensors** (0.4.5) - LoRA file format
+- **PEFT** (0.13.0) - Parameter-Efficient Fine-Tuning
+- **Pillow** (10.4.0) - Image processing
+- **NumPy** (1.26.4) - Numerical computing
+
 ## Notes
 
 - First run will download the Stable Diffusion model (~6GB)
@@ -157,3 +172,4 @@ To disable automatic startup, set `AutoStart: false` and run this backend manual
 - For production LoRA training, integrate kohya_ss or PEFT
 - When using automatic startup, the virtual environment is at `venv/`
 - Python process logs are forwarded to the Blazor application console
+- Dependencies are automatically updated to compatible versions

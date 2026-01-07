@@ -30,6 +30,13 @@ That's it! The application will:
 
 **No manual Python setup required!**
 
+The startup process includes detailed progress feedback:
+- **[STEP 1/3]** Virtual environment creation (~30-60 seconds)
+- **[STEP 2/3]** Dependency installation (~2-5 minutes on first run)
+  - Highlights major packages: PyTorch (~200MB), diffusers, transformers
+- **[STEP 3/3]** Python backend startup
+- Clear **[SUCCESS]** and **[FAILED]** status indicators
+
 ## Prerequisites
 
 - .NET 8.0 SDK or higher

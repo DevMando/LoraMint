@@ -25,6 +25,12 @@ That's it! The application will:
 4. 🚀 Start both the Blazor web app and Python backend
 5. 🌐 Open the app at `https://localhost:5001`
 
+**Note:** The startup process now includes detailed progress indicators:
+- `[STEP 1/3]` Virtual environment creation
+- `[STEP 2/3]` Dependency installation (highlights PyTorch, diffusers, transformers)
+- `[STEP 3/3]` Backend startup
+- Clear `[SUCCESS]` and `[FAILED]` status messages
+
 ## 🔧 Manual Setup (Optional)
 
 If you prefer to set up the Python environment manually first:
