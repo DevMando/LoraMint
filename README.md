@@ -270,7 +270,9 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Docker support
 - **Automatic Python backend startup**
 - **One-command setup and launch**
-- Cross-platform startup scripts
+- **Enhanced startup feedback with progress indicators**
+- Cross-platform startup scripts (Windows & Linux/macOS)
+- **Automated dependency installation and validation**
 
 ### 🔨 In Progress
 - Full LoRA training implementation (currently placeholder)
