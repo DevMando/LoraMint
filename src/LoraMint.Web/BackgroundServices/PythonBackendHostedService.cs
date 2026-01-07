@@ -36,14 +36,16 @@ public class PythonBackendHostedService : IHostedService, IDisposable
             return;
         }
 
-        _logger.LogInformation("Starting Python backend service...");
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("Starting Python Backend Setup...");
+        _logger.LogInformation("========================================");
 
         try
         {
             // Check if Python backend directory exists
             if (!Directory.Exists(_pythonBackendPath))
             {
-                _logger.LogError("Python backend directory not found: {Path}", _pythonBackendPath);
+                _logger.LogError("[FAILED] Python backend directory not found: {Path}", _pythonBackendPath);
                 return;
             }
 
@@ -59,11 +61,15 @@ public class PythonBackendHostedService : IHostedService, IDisposable
             // Start Python backend
             await StartPythonBackendAsync(cancellationToken);
 
-            _logger.LogInformation("Python backend started successfully");
+            _logger.LogInformation("========================================");
+            _logger.LogInformation("[SUCCESS] Python backend started successfully!");
+            _logger.LogInformation("========================================");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start Python backend");
+            _logger.LogError("========================================");
+            _logger.LogError(ex, "[FAILED] Could not start Python backend");
+            _logger.LogError("========================================");
         }
     }
 
@@ -90,11 +96,12 @@ public class PythonBackendHostedService : IHostedService, IDisposable
     {
         if (Directory.Exists(_venvPath))
         {
-            _logger.LogInformation("Virtual environment already exists");
+            _logger.LogInformation("[STEP 1/3] Virtual environment found - skipping creation");
             return;
         }
 
-        _logger.LogInformation("Creating Python virtual environment...");
+        _logger.LogInformation("[STEP 1/3] Creating Python virtual environment...");
+        _logger.LogInformation("            This may take 30-60 seconds...");
 
         var pythonCmd = GetPythonCommand();
         var process = new Process
@@ -118,25 +125,29 @@ public class PythonBackendHostedService : IHostedService, IDisposable
 
         if (process.ExitCode != 0)
         {
-            _logger.LogError("Failed to create virtual environment: {Error}", error);
+            _logger.LogError("[FAILED] Could not create virtual environment: {Error}", error);
             throw new Exception($"Failed to create virtual environment: {error}");
         }
 
-        _logger.LogInformation("Virtual environment created successfully");
+        _logger.LogInformation("[SUCCESS] Virtual environment created successfully!");
     }
 
     private async Task InstallDependenciesAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Installing Python dependencies...");
+        _logger.LogInformation("[STEP 2/3] Installing Python dependencies...");
+        _logger.LogInformation("            This may take 2-5 minutes on first run");
+        _logger.LogInformation("            Installing: PyTorch, diffusers, transformers, and more");
 
         var pipCmd = GetPipCommand();
         var requirementsPath = Path.Combine(_pythonBackendPath, "requirements.txt");
 
         if (!File.Exists(requirementsPath))
         {
-            _logger.LogWarning("requirements.txt not found, skipping dependency installation");
+            _logger.LogWarning("[WARNING] requirements.txt not found, skipping dependency installation");
             return;
         }
+
+        var packagesInstalled = new HashSet<string>();
 
         var process = new Process
         {
@@ -155,13 +166,35 @@ public class PythonBackendHostedService : IHostedService, IDisposable
         process.OutputDataReceived += (sender, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
-                _logger.LogInformation("[pip] {Output}", e.Data);
+            {
+                // Highlight major packages being downloaded
+                if (e.Data.Contains("Downloading torch-"))
+                {
+                    _logger.LogInformation("            > Downloading PyTorch (this is the largest package ~200MB)");
+                }
+                else if (e.Data.Contains("Downloading diffusers-"))
+                {
+                    _logger.LogInformation("            > Downloading diffusers (for Stable Diffusion)");
+                }
+                else if (e.Data.Contains("Downloading transformers-"))
+                {
+                    _logger.LogInformation("            > Downloading transformers (for AI models)");
+                }
+                else if (e.Data.Contains("Successfully installed"))
+                {
+                    _logger.LogInformation("            > {Output}", e.Data);
+                }
+                else
+                {
+                    _logger.LogInformation("            {Output}", e.Data);
+                }
+            }
         };
 
         process.ErrorDataReceived += (sender, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
-                _logger.LogWarning("[pip] {Error}", e.Data);
+                _logger.LogWarning("            [pip] {Error}", e.Data);
         };
 
         process.Start();
@@ -171,23 +204,23 @@ public class PythonBackendHostedService : IHostedService, IDisposable
 
         if (process.ExitCode != 0)
         {
-            _logger.LogError("Failed to install dependencies");
+            _logger.LogError("[FAILED] Could not install dependencies");
             throw new Exception("Failed to install Python dependencies");
         }
 
-        _logger.LogInformation("Dependencies installed successfully");
+        _logger.LogInformation("[SUCCESS] All Python dependencies installed successfully!");
     }
 
     private async Task StartPythonBackendAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Starting Python backend process...");
+        _logger.LogInformation("[STEP 3/3] Starting Python FastAPI backend...");
 
         var pythonCmd = GetVenvPythonCommand();
         var mainPyPath = Path.Combine(_pythonBackendPath, "main.py");
 
         if (!File.Exists(mainPyPath))
         {
-            _logger.LogError("main.py not found at: {Path}", mainPyPath);
+            _logger.LogError("[FAILED] main.py not found at: {Path}", mainPyPath);
             throw new FileNotFoundException($"main.py not found at: {mainPyPath}");
         }
 
@@ -208,13 +241,13 @@ public class PythonBackendHostedService : IHostedService, IDisposable
         _pythonProcess.OutputDataReceived += (sender, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
-                _logger.LogInformation("[Python] {Output}", e.Data);
+                _logger.LogInformation("            [Python] {Output}", e.Data);
         };
 
         _pythonProcess.ErrorDataReceived += (sender, e) =>
         {
             if (!string.IsNullOrEmpty(e.Data))
-                _logger.LogWarning("[Python] {Error}", e.Data);
+                _logger.LogWarning("            [Python Error] {Error}", e.Data);
         };
 
         _pythonProcess.Start();
@@ -226,12 +259,12 @@ public class PythonBackendHostedService : IHostedService, IDisposable
 
         if (_pythonProcess.HasExited)
         {
-            _logger.LogError("Python backend exited immediately with code: {ExitCode}",
+            _logger.LogError("[FAILED] Python backend exited immediately with code: {ExitCode}",
                 _pythonProcess.ExitCode);
             throw new Exception($"Python backend failed to start. Exit code: {_pythonProcess.ExitCode}");
         }
 
-        _logger.LogInformation("Python backend is running");
+        _logger.LogInformation("[SUCCESS] Python backend is running on port 8000");
     }
 
     private string GetPythonCommand()

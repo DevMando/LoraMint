@@ -39,7 +39,7 @@
                     </div>
                 }
 
-                <button class="btn btn-success" @onclick="TrainLora" disabled="@isTraining">
+                <button class="btn btn-success" @onclick="StartTraining" disabled="@isTraining">
                     @if (isTraining)
                     {
                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -100,7 +100,7 @@
         }
     }
 
-    private async Task TrainLora()
+    private async Task StartTraining()
     {
         errorMessage = string.Empty;
         successMessage = string.Empty;
