@@ -6,80 +6,73 @@
 
 <PageTitle>Generate Image</PageTitle>
 
-<h1>Generate Image</h1>
+<RadzenText TextStyle="TextStyle.H2" Style="margin-bottom: 1.5rem;">Generate Image</RadzenText>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="prompt" class="form-label">Prompt</label>
-                    <textarea class="form-control" id="prompt" rows="4" @bind="prompt" placeholder="Describe the image you want to generate..."></textarea>
-                </div>
+<RadzenRow Gap="1.5rem">
+    <RadzenColumn Size="12" SizeMD="8">
+        <RadzenCard>
+            <RadzenStack Gap="1rem">
+                <RadzenFormField Text="Prompt">
+                    <RadzenTextArea @bind-Value="prompt" Rows="4" Placeholder="Describe the image you want to generate..." Style="width: 100%;" />
+                </RadzenFormField>
 
-                <div class="mb-3">
-                    <label for="userId" class="form-label">User ID</label>
-                    <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
-                </div>
+                <RadzenFormField Text="User ID">
+                    <RadzenTextBox @bind-Value="userId" Placeholder="Enter your user ID" Style="width: 100%;" />
+                </RadzenFormField>
 
-                <div class="mb-3">
-                    <label class="form-label">Select LoRAs (Optional)</label>
+                <RadzenFormField Text="Select LoRAs (Optional)">
                     @if (availableLoras.Any())
                     {
-                        @foreach (var lora in availableLoras)
-                        {
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="@lora.FileName" id="lora-@lora.FileName"
-                                       @onchange="@((e) => ToggleLora(lora.FileName, (bool)e.Value!))">
-                                <label class="form-check-label" for="lora-@lora.FileName">
-                                    @lora.Name
-                                </label>
-                            </div>
-                        }
+                        <RadzenStack Gap="0.5rem">
+                            @foreach (var lora in availableLoras)
+                            {
+                                <RadzenCheckBox @bind-Value="@selectedLorasDict[lora.FileName]"
+                                               Name="@lora.FileName"
+                                               Change="@((bool value) => ToggleLora(lora.FileName, value))" />
+                                <RadzenLabel Text="@lora.Name" Component="@lora.FileName" Style="margin-left: 0.25rem;" />
+                            }
+                        </RadzenStack>
                     }
                     else
                     {
-                        <p class="text-muted">No LoRAs available. Train one first!</p>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">No LoRAs available. Train one first!</RadzenText>
                     }
-                </div>
+                </RadzenFormField>
 
-                <button class="btn btn-primary" @onclick="GenerateImage" disabled="@isGenerating">
-                    @if (isGenerating)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        <span>Generating...</span>
-                    }
-                    else
-                    {
-                        <span>Generate Image</span>
-                    }
-                </button>
+                <RadzenButton Text="@(isGenerating ? "Generating..." : "Generate Image")"
+                             Icon="@(isGenerating ? "" : "add_photo_alternate")"
+                             IsBusy="@isGenerating"
+                             ButtonStyle="ButtonStyle.Primary"
+                             Click="@GenerateImage"
+                             Disabled="@isGenerating" />
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="alert alert-danger mt-3">@errorMessage</div>
+                    <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter">
+                        @errorMessage
+                    </RadzenAlert>
                 }
 
                 @if (!string.IsNullOrEmpty(successMessage))
                 {
-                    <div class="alert alert-success mt-3">@successMessage</div>
+                    <RadzenAlert AlertStyle="AlertStyle.Success" Variant="Variant.Flat" Shade="Shade.Lighter">
+                        @successMessage
+                    </RadzenAlert>
                 }
-            </div>
-        </div>
-    </div>
+            </RadzenStack>
+        </RadzenCard>
+    </RadzenColumn>
 
-    <div class="col-md-4">
+    <RadzenColumn Size="12" SizeMD="4">
         @if (!string.IsNullOrEmpty(generatedImagePath))
         {
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Generated Image</h5>
-                    <img src="@generatedImagePath" class="img-fluid" alt="Generated image" />
-                </div>
-            </div>
+            <RadzenCard>
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">Generated Image</RadzenText>
+                <RadzenImage Path="@generatedImagePath" Style="width: 100%; height: auto;" AlternateText="Generated image" />
+            </RadzenCard>
         }
-    </div>
-</div>
+    </RadzenColumn>
+</RadzenRow>
 
 @code {
     private string prompt = string.Empty;
@@ -90,6 +83,7 @@
     private string generatedImagePath = string.Empty;
     private List<LoraInfo> availableLoras = new();
     private Dictionary<string, double> selectedLoras = new();
+    private Dictionary<string, bool> selectedLorasDict = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,6 +98,11 @@
             if (response?.Success == true && response.Loras != null)
             {
                 availableLoras = response.Loras;
+                // Initialize checkbox state
+                foreach (var lora in availableLoras)
+                {
+                    selectedLorasDict[lora.FileName] = false;
+                }
             }
         }
         catch (Exception ex)

@@ -2,48 +2,43 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Welcome to LoraMint</h1>
+<RadzenText TextStyle="TextStyle.H2">Welcome to LoraMint</RadzenText>
+<RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 0.5rem;">AI-Powered Image Generation with Custom LoRA Training</RadzenText>
 
-<p class="lead">AI-Powered Image Generation with Custom LoRA Training</p>
+<RadzenRow Gap="1.5rem" Style="margin-top: 2rem;">
+    <RadzenColumn Size="12" SizeMD="6">
+        <RadzenCard Style="height: 100%;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Generate Images</RadzenText>
+            <RadzenText Style="margin-bottom: 1rem;">Create stunning images from text prompts using Stable Diffusion with optional LoRA models.</RadzenText>
+            <RadzenButton Text="Start Generating" ButtonStyle="ButtonStyle.Primary" Click="@(() => NavigationManager.NavigateTo("/generate"))" />
+        </RadzenCard>
+    </RadzenColumn>
+    <RadzenColumn Size="12" SizeMD="6">
+        <RadzenCard Style="height: 100%;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Train Custom LoRAs</RadzenText>
+            <RadzenText Style="margin-bottom: 1rem;">Upload your reference images to train personalized LoRA adapters for unique styles.</RadzenText>
+            <RadzenButton Text="Train LoRA" ButtonStyle="ButtonStyle.Success" Click="@(() => NavigationManager.NavigateTo("/train-lora"))" />
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Generate Images</h5>
-                <p class="card-text">Create stunning images from text prompts using Stable Diffusion with optional LoRA models.</p>
-                <a href="/generate" class="btn btn-primary">Start Generating</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Train Custom LoRAs</h5>
-                <p class="card-text">Upload your reference images to train personalized LoRA adapters for unique styles.</p>
-                <a href="/train-lora" class="btn btn-success">Train LoRA</a>
-            </div>
-        </div>
-    </div>
-</div>
+<RadzenRow Gap="1.5rem" Style="margin-top: 1.5rem;">
+    <RadzenColumn Size="12" SizeMD="6">
+        <RadzenCard Style="height: 100%;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">My Images</RadzenText>
+            <RadzenText Style="margin-bottom: 1rem;">Browse and manage your generated images.</RadzenText>
+            <RadzenButton Text="View Gallery" ButtonStyle="ButtonStyle.Info" Click="@(() => NavigationManager.NavigateTo("/my-images"))" />
+        </RadzenCard>
+    </RadzenColumn>
+    <RadzenColumn Size="12" SizeMD="6">
+        <RadzenCard Style="height: 100%;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">My LoRAs</RadzenText>
+            <RadzenText Style="margin-bottom: 1rem;">View and manage your trained LoRA models.</RadzenText>
+            <RadzenButton Text="View LoRAs" ButtonStyle="ButtonStyle.Warning" Click="@(() => NavigationManager.NavigateTo("/my-loras"))" />
+        </RadzenCard>
+    </RadzenColumn>
+</RadzenRow>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">My Images</h5>
-                <p class="card-text">Browse and manage your generated images.</p>
-                <a href="/my-images" class="btn btn-info">View Gallery</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">My LoRAs</h5>
-                <p class="card-text">View and manage your trained LoRA models.</p>
-                <a href="/my-loras" class="btn btn-warning">View LoRAs</a>
-            </div>
-        </div>
-    </div>
-</div>
+@code {
+    [Inject] NavigationManager NavigationManager { get; set; } = default!;
+}

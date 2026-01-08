@@ -1,41 +1,7 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">LoraMint</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="generate">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Generate
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="train-lora">
-                <span class="bi bi-lightbulb-fill-nav-menu" aria-hidden="true"></span> Train LoRA
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="my-images">
-                <span class="bi bi-image-fill-nav-menu" aria-hidden="true"></span> My Images
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="my-loras">
-                <span class="bi bi-folder-fill-nav-menu" aria-hidden="true"></span> My LoRAs
-            </NavLink>
-        </div>
-    </nav>
-</div>
+<RadzenPanelMenu>
+    <RadzenPanelMenuItem Text="Home" Icon="home" Path="" />
+    <RadzenPanelMenuItem Text="Generate" Icon="add_circle" Path="generate" />
+    <RadzenPanelMenuItem Text="Train LoRA" Icon="lightbulb" Path="train-lora" />
+    <RadzenPanelMenuItem Text="My Images" Icon="image" Path="my-images" />
+    <RadzenPanelMenuItem Text="My LoRAs" Icon="folder" Path="my-loras" />
+</RadzenPanelMenu>
