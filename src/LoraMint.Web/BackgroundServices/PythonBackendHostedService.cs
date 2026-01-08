@@ -12,6 +12,7 @@ public class PythonBackendHostedService : IHostedService, IDisposable
     private readonly string _venvPath;
     private readonly bool _autoStart;
     private readonly bool _autoInstallDependencies;
+    private bool _startedByThisService = false;
 
     public PythonBackendHostedService(
         ILogger<PythonBackendHostedService> logger,
@@ -42,6 +43,15 @@ public class PythonBackendHostedService : IHostedService, IDisposable
 
         try
         {
+            // Check if Python backend is already running
+            if (await IsPythonBackendRunningAsync(cancellationToken))
+            {
+                _logger.LogInformation("[DETECTED] Python backend is already running on port 8000");
+                _logger.LogInformation("[SUCCESS] Skipping startup - using existing Python backend instance");
+                _logger.LogInformation("========================================");
+                return;
+            }
+
             // Check if Python backend directory exists
             if (!Directory.Exists(_pythonBackendPath))
             {
@@ -77,7 +87,8 @@ public class PythonBackendHostedService : IHostedService, IDisposable
     {
         _logger.LogInformation("Stopping Python backend service...");
 
-        if (_pythonProcess != null && !_pythonProcess.HasExited)
+        // Only stop the process if we started it ourselves
+        if (_startedByThisService && _pythonProcess != null && !_pythonProcess.HasExited)
         {
             try
             {
@@ -89,6 +100,10 @@ public class PythonBackendHostedService : IHostedService, IDisposable
             {
                 _logger.LogError(ex, "Error stopping Python backend");
             }
+        }
+        else if (!_startedByThisService)
+        {
+            _logger.LogInformation("Python backend was already running - leaving it running");
         }
     }
 
@@ -264,7 +279,44 @@ public class PythonBackendHostedService : IHostedService, IDisposable
             throw new Exception($"Python backend failed to start. Exit code: {_pythonProcess.ExitCode}");
         }
 
+        _startedByThisService = true;
         _logger.LogInformation("[SUCCESS] Python backend is running on port 8000");
+    }
+
+    private async Task<bool> IsPythonBackendRunningAsync(CancellationToken cancellationToken)
+    {
+        var baseUrl = _configuration["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+
+        try
+        {
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+
+            // Try to hit the health endpoint or root endpoint
+            var healthEndpoints = new[] { $"{baseUrl}/health", $"{baseUrl}/", $"{baseUrl}/docs" };
+
+            foreach (var endpoint in healthEndpoints)
+            {
+                try
+                {
+                    var response = await httpClient.GetAsync(endpoint, cancellationToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // Continue to next endpoint
+                    continue;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private string GetPythonCommand()
@@ -329,7 +381,8 @@ public class PythonBackendHostedService : IHostedService, IDisposable
 
     public void Dispose()
     {
-        if (_pythonProcess != null && !_pythonProcess.HasExited)
+        // Only kill the process if we started it
+        if (_startedByThisService && _pythonProcess != null && !_pythonProcess.HasExited)
         {
             try
             {
