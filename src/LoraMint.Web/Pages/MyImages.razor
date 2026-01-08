@@ -5,60 +5,55 @@
 
 <PageTitle>My Images</PageTitle>
 
-<h1>My Images</h1>
+<RadzenText TextStyle="TextStyle.H2" Style="margin-bottom: 1.5rem;">My Images</RadzenText>
 
-<div class="row">
-    <div class="col-md-12">
-        <div class="mb-3">
-            <label for="userId" class="form-label">User ID</label>
-            <div class="input-group">
-                <input type="text" class="form-control" id="userId" @bind="userId" placeholder="Enter your user ID" />
-                <button class="btn btn-primary" @onclick="LoadImages">Load Images</button>
-            </div>
+<RadzenStack Gap="1rem">
+    <RadzenFormField Text="User ID">
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenTextBox @bind-Value="userId" Placeholder="Enter your user ID" Style="flex: 1;" />
+            <RadzenButton Text="Load Images" Icon="refresh" ButtonStyle="ButtonStyle.Primary" Click="@LoadImages" />
+        </RadzenStack>
+    </RadzenFormField>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter">
+            @errorMessage
+        </RadzenAlert>
+    }
+
+    @if (isLoading)
+    {
+        <div style="text-align: center; padding: 2rem;">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
         </div>
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <div class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-            </div>
-        }
-        else if (images.Any())
-        {
-            <div class="row row-cols-1 row-cols-md-3 g-4">
-                @foreach (var image in images)
-                {
-                    <div class="col">
-                        <div class="card h-100">
-                            <img src="@image.Url" class="card-img-top" alt="@image.FileName">
-                            <div class="card-body">
-                                <h6 class="card-title">@image.FileName</h6>
-                                @if (!string.IsNullOrEmpty(image.Prompt))
-                                {
-                                    <p class="card-text"><small>@image.Prompt</small></p>
-                                }
-                                <p class="card-text"><small class="text-muted">@image.CreatedAt.ToString("g")</small></p>
-                            </div>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="alert alert-info">
-                No images found. Generate some images first!
-            </div>
-        }
-    </div>
-</div>
+    }
+    else if (images.Any())
+    {
+        <RadzenRow Gap="1.5rem">
+            @foreach (var image in images)
+            {
+                <RadzenColumn Size="12" SizeMD="4">
+                    <RadzenCard Style="height: 100%;">
+                        <RadzenImage Path="@image.Url" Style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 0.75rem;" AlternateText="@image.FileName" />
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 0.5rem;">@image.FileName</RadzenText>
+                        @if (!string.IsNullOrEmpty(image.Prompt))
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" Style="margin-bottom: 0.5rem;">@image.Prompt</RadzenText>
+                        }
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">@image.CreatedAt.ToString("g")</RadzenText>
+                    </RadzenCard>
+                </RadzenColumn>
+            }
+        </RadzenRow>
+    }
+    else
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
+            No images found. Generate some images first!
+        </RadzenAlert>
+    }
+</RadzenStack>
 
 @code {
     private string userId = "user123"; // Default for testing
