@@ -7,9 +7,9 @@ import os
 
 class FileHandler:
     def __init__(self):
-        self.loras_base_path = Path("../../../data/loras")
-        self.outputs_base_path = Path("../../../data/outputs")
-        self.temp_base_path = Path("../../../data/temp")
+        self.loras_base_path = Path("../../data/loras")
+        self.outputs_base_path = Path("../../data/outputs")
+        self.temp_base_path = Path("../../data/temp")
 
         # Create directories if they don't exist
         self.loras_base_path.mkdir(parents=True, exist_ok=True)

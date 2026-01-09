@@ -12,8 +12,8 @@ class ImageGenerator:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipeline = None
         self.model_id = "stabilityai/stable-diffusion-xl-base-1.0"
-        self.outputs_base_path = Path("../../../data/outputs")
-        self.loras_base_path = Path("../../../data/loras")
+        self.outputs_base_path = Path("../../data/outputs")
+        self.loras_base_path = Path("../../data/loras")
 
         # Create outputs directory if it doesn't exist
         self.outputs_base_path.mkdir(parents=True, exist_ok=True)
