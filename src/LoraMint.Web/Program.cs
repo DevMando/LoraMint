@@ -1,6 +1,7 @@
 using LoraMint.Web.Models;
 using LoraMint.Web.Services;
 using LoraMint.Web.BackgroundServices;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,38 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// Serve generated images and LoRA files from the data directory
+var dataPath = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "..", "data"));
+if (!Directory.Exists(dataPath))
+{
+    Directory.CreateDirectory(dataPath);
+}
+
+// Serve /outputs from data/outputs
+var outputsPath = Path.Combine(dataPath, "outputs");
+if (!Directory.Exists(outputsPath))
+{
+    Directory.CreateDirectory(outputsPath);
+}
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(outputsPath),
+    RequestPath = "/outputs"
+});
+
+// Serve /loras from data/loras
+var lorasPath = Path.Combine(dataPath, "loras");
+if (!Directory.Exists(lorasPath))
+{
+    Directory.CreateDirectory(lorasPath);
+}
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(lorasPath),
+    RequestPath = "/loras"
+});
+
 app.UseAntiforgery();
 
 // Minimal API Endpoints
