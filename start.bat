@@ -55,6 +55,10 @@ echo.
 echo ========================================
 echo.
 
+REM Open browser after a short delay (runs in background)
+echo [BROWSER] Will open https://localhost:5001 in 5 seconds...
+start "" cmd /c "timeout /t 5 /nobreak >nul && start https://localhost:5001"
+
 REM Start the application
 dotnet run
 

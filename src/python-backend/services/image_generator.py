@@ -34,27 +34,35 @@ class ImageGenerator:
             self.pipeline = self.pipeline.to(self.device)
             print(f"Model loaded on {self.device}")
 
-    def load_loras(self, user_id: str, loras: Optional[List[LoraReference]]):
-        """Load LoRA adapters into the pipeline"""
+    def load_loras(self, user_id: str, loras: Optional[List[LoraReference]]) -> bool:
+        """Load LoRA adapters into the pipeline. Returns True if any LoRA was loaded."""
         if not loras:
-            return
+            return False
 
+        loaded_any = False
         for lora in loras:
             lora_path = self.loras_base_path / user_id / lora.file
             if lora_path.exists():
-                print(f"Loading LoRA: {lora.file} with strength {lora.strength}")
-                self.pipeline.load_lora_weights(
-                    str(lora_path.parent),
-                    weight_name=lora.file,
-                    adapter_name=lora.file.replace('.safetensors', '')
-                )
-                # Set adapter strength
-                self.pipeline.set_adapters(
-                    [lora.file.replace('.safetensors', '')],
-                    adapter_weights=[lora.strength]
-                )
+                try:
+                    print(f"Loading LoRA: {lora.file} with strength {lora.strength}")
+                    self.pipeline.load_lora_weights(
+                        str(lora_path.parent),
+                        weight_name=lora.file,
+                        adapter_name=lora.file.replace('.safetensors', '')
+                    )
+                    # Set adapter strength
+                    self.pipeline.set_adapters(
+                        [lora.file.replace('.safetensors', '')],
+                        adapter_weights=[lora.strength]
+                    )
+                    loaded_any = True
+                except Exception as e:
+                    print(f"Warning: Failed to load LoRA {lora.file}: {e}")
+                    print("Continuing without this LoRA...")
             else:
                 print(f"Warning: LoRA file not found: {lora_path}")
+
+        return loaded_any
 
     async def generate(
         self,
@@ -77,8 +85,9 @@ class ImageGenerator:
         self.load_pipeline()
 
         # Load LoRAs if specified
+        loras_loaded = False
         if loras:
-            self.load_loras(user_id, loras)
+            loras_loaded = self.load_loras(user_id, loras)
 
         # Create user output directory
         user_output_dir = self.outputs_base_path / user_id
@@ -103,8 +112,11 @@ class ImageGenerator:
         print(f"Image saved to: {output_path}")
 
         # Unload LoRAs for next generation
-        if loras:
-            self.pipeline.unload_lora_weights()
+        if loras_loaded:
+            try:
+                self.pipeline.unload_lora_weights()
+            except Exception as e:
+                print(f"Warning: Failed to unload LoRA weights: {e}")
 
         return f"/outputs/{user_id}/{output_filename}"
 

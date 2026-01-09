@@ -41,6 +41,8 @@ async def generate_image(request: GenerateRequest):
     Generate an image using Stable Diffusion with optional LoRA models
     """
     try:
+        print(f"Received generate request: prompt='{request.prompt}', userId='{request.userId}', loras={request.loras}")
+
         # Generate the image
         image_path = await image_generator.generate(
             prompt=request.prompt,
@@ -55,7 +57,10 @@ async def generate_image(request: GenerateRequest):
         })
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error generating image: {error_details}")
+        raise HTTPException(status_code=500, detail=f"{str(e)}\n\nTraceback:\n{error_details}")
 
 @app.post("/train-lora")
 async def train_lora(

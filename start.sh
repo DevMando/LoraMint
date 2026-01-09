@@ -52,6 +52,10 @@ echo ""
 echo "========================================"
 echo ""
 
+# Open browser after a short delay (runs in background)
+echo "[BROWSER] Will open https://localhost:5001 in 5 seconds..."
+(sleep 5 && xdg-open https://localhost:5001 2>/dev/null || open https://localhost:5001 2>/dev/null) &
+
 # Start the application
 dotnet run
 

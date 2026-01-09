@@ -11,6 +11,14 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpClient<PythonBackendService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["PythonBackend:BaseUrl"] ?? "http://localhost:8000");
+    client.Timeout = TimeSpan.FromMinutes(10); // Image generation can take a while, especially on first run
+});
+
+// Add HttpClient for Blazor components to call local Minimal APIs
+builder.Services.AddScoped(sp =>
+{
+    var navigationManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+    return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
 });
 
 builder.Services.AddSingleton<FileStorageService>();
