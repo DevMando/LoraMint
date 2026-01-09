@@ -20,12 +20,19 @@ public class PythonBackendService
         try
         {
             var json = JsonSerializer.Serialize(request);
+            _logger.LogInformation("Sending generate request: {Json}", json);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync("/generate", content);
-            response.EnsureSuccessStatusCode();
 
             var result = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Python backend error: {StatusCode} - {Response}", response.StatusCode, result);
+                throw new Exception($"Python backend error: {result}");
+            }
+
             var jsonResult = JsonSerializer.Deserialize<JsonElement>(result);
 
             return jsonResult.GetProperty("image_path").GetString() ?? string.Empty;

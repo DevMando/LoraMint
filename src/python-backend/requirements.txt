@@ -1,9 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cu121
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 pydantic==2.5.3
-torch==2.2.0
-torchvision==0.17.0
+torch==2.2.0+cu121
+torchvision==0.17.0+cu121
 diffusers==0.30.0
 transformers==4.44.0
 accelerate==0.34.0

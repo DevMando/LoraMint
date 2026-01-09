@@ -8,7 +8,10 @@ import os
 class LoraTrainer:
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.loras_base_path = Path("../../../data/loras")
+
+        # Use absolute paths based on this file's location
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent  # LoraMint/
+        self.loras_base_path = base_dir / "data" / "loras"
 
         # Create loras directory if it doesn't exist
         self.loras_base_path.mkdir(parents=True, exist_ok=True)

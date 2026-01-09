@@ -9,7 +9,12 @@
       "Bash(git push:*)",
       "Bash(mkdir:*)",
       "Bash(dotnet add:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(tasklist.exe:*)",
+      "Bash(netstat.exe:*)",
+      "Bash(powershell.exe -Command \"Invoke-RestMethod -Uri ''http://localhost:8000/health'' -Method Get\")",
+      "Bash(powershell.exe -Command \"try { \\(Invoke-WebRequest -Uri ''http://localhost:8000/'' -UseBasicParsing -TimeoutSec 5\\).Content } catch { $_.Exception.Message }\")",
+      "Bash(nvidia-smi.exe:*)"
     ]
   }
 }

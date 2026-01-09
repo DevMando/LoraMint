@@ -7,9 +7,11 @@ import os
 
 class FileHandler:
     def __init__(self):
-        self.loras_base_path = Path("../../../data/loras")
-        self.outputs_base_path = Path("../../../data/outputs")
-        self.temp_base_path = Path("../../../data/temp")
+        # Use absolute paths based on this file's location
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent  # LoraMint/
+        self.loras_base_path = base_dir / "data" / "loras"
+        self.outputs_base_path = base_dir / "data" / "outputs"
+        self.temp_base_path = base_dir / "data" / "temp"
 
         # Create directories if they don't exist
         self.loras_base_path.mkdir(parents=True, exist_ok=True)
