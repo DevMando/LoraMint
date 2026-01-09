@@ -10,6 +10,26 @@ echo "   LoraMint - AI Image Generation"
 echo "========================================"
 echo ""
 
+# Kill any existing instances
+echo "[CHECK] Checking for existing instances..."
+
+# Kill existing LoraMint.Web process if running
+if pgrep -f "LoraMint.Web" > /dev/null 2>&1; then
+    echo "[CLEANUP] Stopping existing LoraMint.Web instance..."
+    pkill -f "LoraMint.Web" 2>/dev/null
+    sleep 2
+fi
+
+# Kill Python process on port 8000 if running
+PORT_8000_PID=$(lsof -ti:8000 2>/dev/null)
+if [ -n "$PORT_8000_PID" ]; then
+    echo "[CLEANUP] Stopping existing Python backend on port 8000 (PID: $PORT_8000_PID)..."
+    kill -9 $PORT_8000_PID 2>/dev/null
+    sleep 1
+fi
+
+echo "[OK] No conflicting instances running"
+
 # Check if .NET SDK is installed
 echo "[CHECK] Verifying .NET SDK installation..."
 if ! command -v dotnet &> /dev/null; then

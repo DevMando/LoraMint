@@ -9,6 +9,25 @@ echo    LoraMint - AI Image Generation
 echo ========================================
 echo.
 
+REM Kill any existing instances
+echo [CHECK] Checking for existing instances...
+
+REM Kill existing LoraMint.Web process if running
+tasklist /FI "IMAGENAME eq LoraMint.Web.exe" 2>nul | find /I "LoraMint.Web.exe" >nul
+if %ERRORLEVEL% EQU 0 (
+    echo [CLEANUP] Stopping existing LoraMint.Web instance...
+    taskkill /F /IM LoraMint.Web.exe >nul 2>&1
+    timeout /t 2 /nobreak >nul
+)
+
+REM Kill Python process on port 8000 if running
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000 ^| findstr LISTENING 2^>nul') do (
+    echo [CLEANUP] Stopping existing Python backend on port 8000 (PID: %%a)...
+    taskkill /F /PID %%a >nul 2>&1
+)
+
+echo [OK] No conflicting instances running
+
 REM Check if .NET SDK is installed
 echo [CHECK] Verifying .NET SDK installation...
 where dotnet >nul 2>nul

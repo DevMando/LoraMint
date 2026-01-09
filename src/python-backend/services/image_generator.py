@@ -12,8 +12,11 @@ class ImageGenerator:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pipeline = None
         self.model_id = "stabilityai/stable-diffusion-xl-base-1.0"
-        self.outputs_base_path = Path("../../data/outputs")
-        self.loras_base_path = Path("../../data/loras")
+
+        # Use absolute paths based on this file's location
+        base_dir = Path(__file__).resolve().parent.parent.parent.parent  # LoraMint/
+        self.outputs_base_path = base_dir / "data" / "outputs"
+        self.loras_base_path = base_dir / "data" / "loras"
 
         # Create outputs directory if it doesn't exist
         self.outputs_base_path.mkdir(parents=True, exist_ok=True)
