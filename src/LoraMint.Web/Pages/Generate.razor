@@ -1,8 +1,11 @@
 @page "/generate"
 @using LoraMint.Web.Models
 @using LoraMint.Web.Services
+@using Microsoft.JSInterop
 @inject HttpClient Http
+@inject IJSRuntime JS
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 
 <PageTitle>Generate Image</PageTitle>
 
@@ -13,11 +16,17 @@
         <RadzenCard>
             <RadzenStack Gap="1rem">
                 <RadzenFormField Text="Prompt">
-                    <RadzenTextArea @bind-Value="prompt" Rows="4" Placeholder="Describe the image you want to generate..." Style="width: 100%;" />
+                    <RadzenTextArea @bind-Value="prompt" Rows="4"
+                        Placeholder="Describe the image you want to generate..."
+                        Style="width: 100%;"
+                        Disabled="@isGenerating" />
                 </RadzenFormField>
 
                 <RadzenFormField Text="User ID">
-                    <RadzenTextBox @bind-Value="userId" Placeholder="Enter your user ID" Style="width: 100%;" />
+                    <RadzenTextBox @bind-Value="userId"
+                        Placeholder="Enter your user ID"
+                        Style="width: 100%;"
+                        Disabled="@isGenerating" />
                 </RadzenFormField>
 
                 <RadzenFormField Text="Select LoRAs (Optional)">
@@ -28,6 +37,7 @@
                             {
                                 <RadzenCheckBox @bind-Value="@selectedLorasDict[lora.FileName]"
                                                Name="@lora.FileName"
+                                               Disabled="@isGenerating"
                                                Change="@((bool value) => ToggleLora(lora.FileName, value))" />
                                 <RadzenLabel Text="@lora.Name" Component="@lora.FileName" Style="margin-left: 0.25rem;" />
                             }
@@ -39,12 +49,36 @@
                     }
                 </RadzenFormField>
 
+                @* Progress Section *@
+                @if (isGenerating)
+                {
+                    <RadzenCard Style="background: var(--rz-base-800); padding: 1rem;">
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 500;">
+                                @progressMessage
+                            </RadzenText>
+                            <RadzenProgressBar Value="@progressPercentage"
+                                ShowValue="true"
+                                Style="height: 24px;"
+                                ProgressBarStyle="ProgressBarStyle.Primary" />
+                            <RadzenText TextStyle="TextStyle.Caption"
+                                Style="color: var(--rz-text-secondary-color);">
+                                Step @currentStep of @totalSteps
+                            </RadzenText>
+                        </RadzenStack>
+                    </RadzenCard>
+                }
+
                 <RadzenButton Text="@(isGenerating ? "Generating..." : "Generate Image")"
                              Icon="@(isGenerating ? "" : "add_photo_alternate")"
                              IsBusy="@isGenerating"
                              ButtonStyle="ButtonStyle.Primary"
-                             Click="@GenerateImage"
+                             Click="@GenerateImageWithProgress"
                              Disabled="@isGenerating" />
+
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color); margin-top: 0.5rem;">
+                    Powered by Stable Diffusion XL
+                </RadzenText>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
@@ -85,9 +119,19 @@
     private Dictionary<string, double> selectedLoras = new();
     private Dictionary<string, bool> selectedLorasDict = new();
 
+    // Progress tracking fields
+    private double progressPercentage = 0;
+    private int currentStep = 0;
+    private int totalSteps = 30;
+    private string progressMessage = "Starting generation...";
+
+    // JS interop reference
+    private DotNetObjectReference<Generate>? dotNetHelper;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadLoras();
+        dotNetHelper = DotNetObjectReference.Create(this);
     }
 
     private async Task LoadLoras()
@@ -123,10 +167,15 @@
         }
     }
 
-    private async Task GenerateImage()
+    private async Task GenerateImageWithProgress()
     {
         errorMessage = string.Empty;
         successMessage = string.Empty;
+        generatedImagePath = string.Empty;
+        progressPercentage = 0;
+        currentStep = 0;
+        totalSteps = 30;
+        progressMessage = "Initializing...";
 
         if (string.IsNullOrWhiteSpace(prompt))
         {
@@ -135,6 +184,7 @@
         }
 
         isGenerating = true;
+        StateHasChanged();
 
         try
         {
@@ -149,27 +199,77 @@
                 }).ToList()
             };
 
-            var response = await Http.PostAsJsonAsync("/api/generate", request);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse<string>>();
-
-            if (result?.Success == true)
-            {
-                generatedImagePath = result.ImageData ?? string.Empty;
-                successMessage = "Image generated successfully!";
-            }
-            else
-            {
-                errorMessage = result?.Error ?? "Failed to generate image";
-            }
+            // Start SSE connection via JavaScript
+            await JS.InvokeVoidAsync(
+                "SseClient.startGeneration",
+                "/api/generate/stream",
+                request,
+                dotNetHelper
+            );
         }
         catch (Exception ex)
         {
             errorMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
             isGenerating = false;
+            StateHasChanged();
         }
+    }
+
+    /// <summary>
+    /// Called by JavaScript when a progress event is received from SSE
+    /// </summary>
+    [JSInvokable]
+    public async Task OnProgressEvent(SseProgressEvent evt)
+    {
+        switch (evt.Event)
+        {
+            case "progress":
+                currentStep = evt.Step ?? 0;
+                totalSteps = evt.TotalSteps ?? 30;
+                progressPercentage = evt.Percentage ?? 0;
+                progressMessage = evt.Message ?? "Generating...";
+                break;
+
+            case "complete":
+                generatedImagePath = evt.ImagePath ?? string.Empty;
+                successMessage = evt.Message ?? "Image generated successfully!";
+                progressPercentage = 100;
+                progressMessage = "Complete!";
+                currentStep = totalSteps;
+                isGenerating = false;
+                break;
+
+            case "error":
+                errorMessage = evt.Error ?? "An error occurred during generation";
+                isGenerating = false;
+                break;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called by JavaScript when a connection error occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task OnError(string message)
+    {
+        errorMessage = $"Connection error: {message}";
+        isGenerating = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("SseClient.stopGeneration");
+        }
+        catch
+        {
+            // Ignore errors during disposal
+        }
+        dotNetHelper?.Dispose();
     }
 
     private class ApiResponse<T>

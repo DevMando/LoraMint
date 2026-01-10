@@ -1,11 +1,14 @@
 import torch
+import asyncio
+import concurrent.futures
 from diffusers import StableDiffusionXLPipeline, AutoPipelineForText2Image
 from pathlib import Path
 import os
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 from datetime import datetime
 
 from models.request_models import LoraReference
+from services.progress_callback import ProgressCallback, ProgressEvent
 
 class ImageGenerator:
     def __init__(self):
@@ -122,6 +125,107 @@ class ImageGenerator:
                 print(f"Warning: Failed to unload LoRA weights: {e}")
 
         return f"/outputs/{user_id}/{output_filename}"
+
+    async def generate_with_progress(
+        self,
+        prompt: str,
+        user_id: str,
+        loras: Optional[List[LoraReference]] = None,
+        num_inference_steps: int = 30
+    ) -> AsyncGenerator[ProgressEvent, None]:
+        """
+        Generate an image with progress streaming via callback.
+        Yields ProgressEvent objects for each inference step.
+
+        Args:
+            prompt: Text prompt for image generation
+            user_id: User identifier for organizing outputs
+            loras: Optional list of LoRA models to apply
+            num_inference_steps: Number of inference steps (default 30)
+
+        Yields:
+            ProgressEvent objects with progress updates
+        """
+        # Load pipeline if not already loaded
+        self.load_pipeline()
+
+        # Load LoRAs if specified
+        loras_loaded = False
+        if loras:
+            loras_loaded = self.load_loras(user_id, loras)
+
+        # Create user output directory
+        user_output_dir = self.outputs_base_path / user_id
+        user_output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = f"generated_{timestamp}.png"
+        output_path = user_output_dir / output_filename
+
+        print(f"Generating image with prompt: {prompt}")
+
+        # Create progress callback
+        callback = ProgressCallback(total_steps=num_inference_steps)
+        loop = asyncio.get_event_loop()
+        callback.set_loop(loop)
+
+        # Function to run pipeline (will be executed in thread pool)
+        def run_pipeline():
+            return self.pipeline(
+                prompt=prompt,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=7.5,
+                callback=callback,
+                callback_steps=1  # Call on every step
+            ).images[0]
+
+        # Run generation in thread pool to not block event loop
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = loop.run_in_executor(executor, run_pipeline)
+
+            # Stream progress events while generation is running
+            while not future.done():
+                try:
+                    # Wait for progress event with timeout
+                    event = await asyncio.wait_for(
+                        callback.queue.get(),
+                        timeout=0.5
+                    )
+                    yield event
+                except asyncio.TimeoutError:
+                    # No event yet, continue waiting
+                    continue
+
+            # Drain any remaining queued events
+            while not callback.queue.empty():
+                try:
+                    event = callback.queue.get_nowait()
+                    yield event
+                except asyncio.QueueEmpty:
+                    break
+
+            # Get result from future
+            try:
+                image = future.result()
+                image.save(str(output_path))
+                print(f"Image saved to: {output_path}")
+
+                # Unload LoRAs for next generation
+                if loras_loaded:
+                    try:
+                        self.pipeline.unload_lora_weights()
+                    except Exception as e:
+                        print(f"Warning: Failed to unload LoRA weights: {e}")
+
+                # Yield completion event
+                await callback.complete(f"/outputs/{user_id}/{output_filename}")
+                yield await callback.queue.get()
+
+            except Exception as e:
+                print(f"Error during generation: {e}")
+                await callback.error(str(e))
+                yield await callback.queue.get()
 
     def cleanup(self):
         """Clean up resources"""
