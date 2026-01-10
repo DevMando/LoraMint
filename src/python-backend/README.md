@@ -103,12 +103,25 @@ Generate an image from a text prompt with optional LoRA models.
 ```
 
 ### POST /train-lora
-Train a new LoRA model using uploaded reference images.
+Train a new LoRA model using DreamBooth-style PEFT training.
 
 **Form Data:**
 - `lora_name`: Name for the LoRA model
 - `user_id`: User identifier
 - `images`: 1-5 image files
+- `fast_mode`: (optional) Enable fast training mode (default: false)
+- `num_train_epochs`: (optional) Training epochs (auto-calculated if not specified)
+- `learning_rate`: (optional) Learning rate (default: 1e-4)
+- `lora_rank`: (optional) LoRA rank 4-32 (default: 8)
+- `with_prior_preservation`: (optional) Use prior preservation (default: true)
+
+### POST /train-lora/stream
+Same as `/train-lora` but returns Server-Sent Events with real-time progress updates.
+
+**SSE Events:**
+- `progress`: Training progress updates (phase, step, total_steps, loss, percentage)
+- `complete`: Training completed successfully (lora_path, trigger_word)
+- `error`: Training failed (error message)
 
 ### GET /loras/{user_id}
 Get list of all LoRA models for a user.
@@ -168,8 +181,26 @@ The following packages are automatically installed:
 
 - First run will download the Stable Diffusion model (~6GB)
 - GPU is highly recommended for acceptable generation speed
-- LoRA training is currently a placeholder implementation
-- For production LoRA training, integrate kohya_ss or PEFT
+- LoRA training uses DreamBooth-style PEFT with prior preservation
+- Training generates class images for prior preservation (25 in fast mode, 50 in standard)
+- Class images are cached in `.class_images/` folder and reused on retry
+- **Known Issue:** 10GB GPUs may experience OOM errors (12GB+ recommended for training)
 - When using automatic startup, the virtual environment is at `venv/`
 - Python process logs are forwarded to the Blazor application console
 - Dependencies are automatically updated to compatible versions
+
+## LoRA Training Architecture
+
+The training pipeline consists of:
+
+1. **Class Image Generation**: Generates 25-50 images of the base concept for prior preservation
+2. **Model Loading**: Loads SDXL UNet, VAE, and text encoders
+3. **Training Loop**: DreamBooth-style training with LoRA adapters
+4. **Saving**: Exports LoRA weights in diffusers-compatible `.safetensors` format
+
+Memory optimizations for consumer GPUs:
+- Text encoders run on CPU (FP32) to save ~2-3GB VRAM
+- Gradient checkpointing enabled
+- 8-bit Adam optimizer (bitsandbytes)
+- Mixed precision (FP16) training
+- Aggressive GPU memory cleanup between phases

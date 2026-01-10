@@ -54,12 +54,17 @@ Issues encountered during initial setup that this page should help prevent:
 ## Real-Time Generation Progress
 
 **Priority:** Medium
-**Status:** Planned
+**Status:** Implemented (SSE-based)
 
-Use SignalR for real-time updates during image generation.
+Real-time progress updates are implemented using Server-Sent Events (SSE) instead of SignalR.
 
-### Features
-- [ ] Progress bar showing inference steps (e.g., "Step 15/30")
+### Implemented Features
+- [x] Progress bar showing inference steps (e.g., "Step 15/30")
+- [x] Phase indicators for training (class_generation, loading_models, training, saving)
+- [x] Loss value display during training
+- [x] Percentage completion
+
+### Remaining Features
 - [ ] Estimated time remaining
 - [ ] Live preview of image generation
 - [ ] Cancel generation button
@@ -70,20 +75,31 @@ Use SignalR for real-time updates during image generation.
 ## LoRA Training Improvements
 
 **Priority:** High
-**Status:** In Progress (currently placeholder implementation)
+**Status:** Partially Implemented (memory optimization needed for 10GB GPUs)
 
-> **Note:** Current implementation creates placeholder .safetensors files that are not valid LoRAs.
-> The image generator now gracefully skips invalid LoRAs, but real training needs to be implemented.
+> **Update:** DreamBooth-style LoRA training has been implemented using PEFT. Training works but may experience OOM issues on GPUs with 10GB VRAM due to CUDA memory fragmentation between class image generation and training phases.
 
-### Features
-- [ ] Full Kohya LoRA trainer integration
-- [ ] PEFT-based training as alternative
-- [ ] Training progress with live updates
-- [ ] Training configuration options (epochs, learning rate, rank, etc.)
+### Implemented Features
+- [x] PEFT-based DreamBooth LoRA training
+- [x] Training progress with live SSE updates
+- [x] Training configuration options (epochs, learning rate, rank, prior preservation)
+- [x] Fast mode (~40% faster with reduced class images)
+- [x] Visual pipeline progress indicator (4 phases)
+- [x] Automatic trigger word generation (sks_<name>)
+- [x] Class image caching (skips regeneration on retry)
+- [x] Text encoders on CPU to save GPU memory
+
+### Known Issues
+- [ ] OOM on 10GB GPUs (RTX 3080) - needs sequential model loading
+- [ ] CUDA memory fragmentation between class generation and training
+
+### Remaining Features
+- [ ] Full Kohya LoRA trainer integration (alternative approach)
 - [ ] Training preview/samples during training
 - [ ] Resume interrupted training
 - [ ] Training queue management
 - [ ] Validate LoRA files before listing in UI
+- [ ] Lower VRAM mode (768px class images, model offloading)
 
 ---
 

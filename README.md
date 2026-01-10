@@ -266,7 +266,7 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Blazor Server UI with all pages
 - ASP.NET Core Minimal APIs
 - FastAPI backend structure
-- Image generation pipeline
+- Image generation pipeline with real-time SSE progress streaming
 - File storage system
 - Docker support
 - **Automatic Python backend startup**
@@ -274,18 +274,49 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - **Enhanced startup feedback with progress indicators**
 - Cross-platform startup scripts (Windows & Linux/macOS)
 - **Automated dependency installation and validation**
+- **Real LoRA training using DreamBooth-style PEFT** (see Known Issues)
+- **Training UI with progress streaming and configurable settings**
+- **Fast mode for quicker training (~40% faster)**
 
 ### 🔨 In Progress
-- Full LoRA training implementation (currently placeholder)
+- LoRA training memory optimization for 10GB GPUs
 - User authentication
 - Image metadata persistence
 
 ### 📋 Planned
-- Real-time generation progress (SignalR)
 - LoRA stacking UI with sliders
 - Azure Blob Storage support
 - Batch generation
 - LoRA marketplace
+
+---
+
+## ⚠️ Known Issues
+
+### LoRA Training Memory (10GB VRAM GPUs)
+
+The current DreamBooth-style LoRA training implementation may experience out-of-memory (OOM) issues on GPUs with 10GB VRAM (e.g., RTX 3080). This occurs because:
+
+1. **Class image generation** loads a full SDXL pipeline (~8GB)
+2. **Training** loads UNet, VAE, and text encoders
+3. CUDA memory fragmentation prevents efficient reuse
+
+**Current mitigations implemented:**
+- Text encoders run on CPU (FP32) instead of GPU
+- Aggressive GPU memory cleanup between phases
+- Gradient checkpointing enabled
+- 8-bit Adam optimizer
+- Mixed precision (FP16) training
+
+**Workarounds for users:**
+- Use GPUs with 12GB+ VRAM for reliable training
+- Close other GPU-intensive applications during training
+- If training fails, restart the app and try again (class images are cached)
+
+**Future fixes planned:**
+- Sequential model loading with offloading
+- Lower resolution option for class image generation
+- Memory-efficient attention (xFormers) when available
 
 ---
 
