@@ -114,10 +114,30 @@ async def generate_image_stream(request: GenerateRequest):
 async def train_lora(
     lora_name: str = Form(...),
     user_id: str = Form(...),
+    num_train_epochs: Optional[int] = Form(default=None),
+    learning_rate: float = Form(default=1e-4),
+    lora_rank: int = Form(default=8),
+    trigger_word: Optional[str] = Form(default=None),
+    with_prior_preservation: bool = Form(default=True),
+    fast_mode: bool = Form(default=False),
     images: List[UploadFile] = File(...)
 ):
     """
-    Train a LoRA model using uploaded reference images
+    Train a LoRA model using uploaded reference images.
+
+    This endpoint performs real DreamBooth-style LoRA training using PEFT.
+    Training can take several minutes depending on settings.
+
+    Parameters:
+    - lora_name: Name for the LoRA model
+    - user_id: User identifier
+    - num_train_epochs: Training epochs (auto-calculated based on image count if not specified)
+    - learning_rate: Learning rate (default 1e-4)
+    - lora_rank: LoRA rank, 4-32 (default 8)
+    - trigger_word: Custom trigger word (auto-generated as sks_<name> if not specified)
+    - with_prior_preservation: Use prior preservation to prevent overfitting (default True)
+    - fast_mode: Enable fast mode for quicker training (fewer class images, reduced epochs)
+    - images: 1-5 training images
     """
     try:
         # Validate inputs
@@ -134,20 +154,189 @@ async def train_lora(
         lora_path = await lora_trainer.train(
             lora_name=lora_name,
             user_id=user_id,
-            image_paths=temp_image_paths
+            image_paths=temp_image_paths,
+            num_train_epochs=num_train_epochs,
+            learning_rate=learning_rate,
+            lora_rank=lora_rank,
+            trigger_word=trigger_word,
+            with_prior_preservation=with_prior_preservation,
+            fast_mode=fast_mode,
         )
 
         # Clean up temporary files
         file_handler.cleanup_temp_files(temp_image_paths)
 
+        # Get trigger word from the trained config
+        # The trainer generates it as sks_<lora_name> if not provided
+        actual_trigger_word = trigger_word
+        if not actual_trigger_word:
+            safe_name = "".join(c for c in lora_name if c.isalnum())
+            actual_trigger_word = f"sks_{safe_name.lower()}"
+
         return JSONResponse(content={
             "success": True,
             "lora_path": lora_path,
-            "message": f"LoRA '{lora_name}' trained successfully"
+            "trigger_word": actual_trigger_word,
+            "message": f"LoRA '{lora_name}' trained successfully. Use trigger word '{actual_trigger_word}' in your prompts."
         })
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error training LoRA: {error_details}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/train-lora/stream")
+async def train_lora_stream(
+    lora_name: str = Form(...),
+    user_id: str = Form(...),
+    num_train_epochs: Optional[int] = Form(default=None),
+    learning_rate: float = Form(default=1e-4),
+    lora_rank: int = Form(default=8),
+    trigger_word: Optional[str] = Form(default=None),
+    with_prior_preservation: bool = Form(default=True),
+    fast_mode: bool = Form(default=False),
+    images: List[UploadFile] = File(...)
+):
+    """
+    Train a LoRA model with SSE progress streaming.
+
+    Same parameters as /train-lora but returns Server-Sent Events
+    with progress updates during training. Includes fast_mode for quicker training.
+    """
+    import asyncio
+    import queue
+    import threading
+
+    # Validate inputs first
+    if not images or len(images) == 0:
+        async def error_gen():
+            yield f"data: {json.dumps({'event': 'error', 'success': False, 'error': 'At least one image is required'})}\n\n"
+        return StreamingResponse(error_gen(), media_type="text/event-stream")
+
+    if len(images) > 5:
+        async def error_gen():
+            yield f"data: {json.dumps({'event': 'error', 'success': False, 'error': 'Maximum 5 images allowed'})}\n\n"
+        return StreamingResponse(error_gen(), media_type="text/event-stream")
+
+    # Save images before starting the generator
+    temp_image_paths = await file_handler.save_temp_images(images)
+
+    async def event_generator():
+        progress_queue = queue.Queue()
+        result_holder = {"path": None, "error": None, "trigger_word": None}
+
+        def progress_callback(progress_data):
+            """Callback to receive progress updates from training"""
+            progress_queue.put(progress_data)
+
+        def run_training():
+            """Run training in a separate thread"""
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                result = loop.run_until_complete(lora_trainer.train(
+                    lora_name=lora_name,
+                    user_id=user_id,
+                    image_paths=temp_image_paths,
+                    num_train_epochs=num_train_epochs,
+                    learning_rate=learning_rate,
+                    lora_rank=lora_rank,
+                    trigger_word=trigger_word,
+                    with_prior_preservation=with_prior_preservation,
+                    fast_mode=fast_mode,
+                    progress_callback=progress_callback,
+                ))
+                result_holder["path"] = result
+
+                # Calculate trigger word
+                if trigger_word:
+                    result_holder["trigger_word"] = trigger_word
+                else:
+                    safe_name = "".join(c for c in lora_name if c.isalnum())
+                    result_holder["trigger_word"] = f"sks_{safe_name.lower()}"
+
+                loop.close()
+            except Exception as e:
+                import traceback
+                result_holder["error"] = str(e)
+                print(f"Training error: {traceback.format_exc()}")
+            finally:
+                # Signal completion
+                progress_queue.put(None)
+
+        # Start training in background thread
+        training_thread = threading.Thread(target=run_training)
+        training_thread.start()
+
+        try:
+            # Stream progress events
+            while True:
+                try:
+                    # Check for progress updates with timeout
+                    event = progress_queue.get(timeout=1.0)
+
+                    if event is None:
+                        # Training completed
+                        break
+
+                    yield f"data: {json.dumps(event)}\n\n"
+
+                except queue.Empty:
+                    # No update, check if thread is still alive
+                    if not training_thread.is_alive():
+                        break
+                    continue
+
+            # Wait for thread to complete
+            training_thread.join(timeout=5.0)
+
+            # Send final result
+            if result_holder["error"]:
+                error_data = {
+                    "event": "error",
+                    "success": False,
+                    "error": result_holder["error"],
+                    "message": "Training failed"
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+            else:
+                complete_data = {
+                    "event": "complete",
+                    "success": True,
+                    "lora_path": result_holder["path"],
+                    "trigger_word": result_holder["trigger_word"],
+                    "message": f"LoRA trained successfully. Use trigger word '{result_holder['trigger_word']}' in your prompts."
+                }
+                yield f"data: {json.dumps(complete_data)}\n\n"
+
+        except Exception as e:
+            import traceback
+            print(f"Streaming error: {traceback.format_exc()}")
+            error_data = {
+                "event": "error",
+                "success": False,
+                "error": str(e),
+                "message": "Unexpected error during training"
+            }
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+        finally:
+            # Clean up temporary files
+            file_handler.cleanup_temp_files(temp_image_paths)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 @app.get("/loras/{user_id}")
 async def list_user_loras(user_id: str):

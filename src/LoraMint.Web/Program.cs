@@ -183,6 +183,132 @@ app.MapPost("/api/train-lora", async (HttpRequest req, PythonBackendService pyth
     }
 });
 
+// SSE Streaming endpoint for LoRA training with progress
+app.MapPost("/api/train-lora/stream", async (HttpRequest req, HttpContext context, IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+
+    if (!req.HasFormContentType)
+    {
+        context.Response.ContentType = "text/event-stream";
+        var errorData = JsonSerializer.Serialize(new
+        {
+            @event = "error",
+            success = false,
+            error = "Invalid form data"
+        });
+        await context.Response.WriteAsync($"data: {errorData}\n\n");
+        return;
+    }
+
+    context.Response.ContentType = "text/event-stream";
+    context.Response.Headers.Append("Cache-Control", "no-cache");
+    context.Response.Headers.Append("Connection", "keep-alive");
+
+    using var httpClient = new HttpClient();
+    httpClient.Timeout = TimeSpan.FromMinutes(60); // Training can take a long time
+
+    try
+    {
+        // Read form and forward to Python backend
+        var form = await req.ReadFormAsync();
+        var formData = new MultipartFormDataContent();
+
+        // Add form fields
+        var loraName = form["lora_name"].ToString();
+        var userId = form["user_id"].ToString();
+
+        if (string.IsNullOrEmpty(loraName))
+        {
+            var errorData = JsonSerializer.Serialize(new
+            {
+                @event = "error",
+                success = false,
+                error = "LoRA name is required"
+            });
+            await context.Response.WriteAsync($"data: {errorData}\n\n");
+            return;
+        }
+
+        formData.Add(new StringContent(loraName), "lora_name");
+        formData.Add(new StringContent(userId), "user_id");
+
+        // Add optional training settings
+        if (form.ContainsKey("fast_mode"))
+            formData.Add(new StringContent(form["fast_mode"].ToString()), "fast_mode");
+        if (form.ContainsKey("num_train_epochs") && !string.IsNullOrEmpty(form["num_train_epochs"].ToString()))
+            formData.Add(new StringContent(form["num_train_epochs"].ToString()), "num_train_epochs");
+        if (form.ContainsKey("learning_rate"))
+            formData.Add(new StringContent(form["learning_rate"].ToString()), "learning_rate");
+        if (form.ContainsKey("lora_rank"))
+            formData.Add(new StringContent(form["lora_rank"].ToString()), "lora_rank");
+        if (form.ContainsKey("with_prior_preservation"))
+            formData.Add(new StringContent(form["with_prior_preservation"].ToString()), "with_prior_preservation");
+
+        // Add files
+        foreach (var file in form.Files)
+        {
+            var streamContent = new StreamContent(file.OpenReadStream());
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                file.ContentType ?? "image/jpeg"
+            );
+            formData.Add(streamContent, "images", file.FileName);
+        }
+
+        var request2 = new HttpRequestMessage(HttpMethod.Post, $"{pythonBaseUrl}/train-lora/stream")
+        {
+            Content = formData
+        };
+
+        using var response = await httpClient.SendAsync(
+            request2,
+            HttpCompletionOption.ResponseHeadersRead,
+            context.RequestAborted
+        );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorData = JsonSerializer.Serialize(new
+            {
+                @event = "error",
+                success = false,
+                error = $"Python backend returned status {response.StatusCode}",
+                message = "Failed to connect to training service"
+            });
+            await context.Response.WriteAsync($"data: {errorData}\n\n");
+            return;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(context.RequestAborted);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream && !context.RequestAborted.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(context.RequestAborted);
+            if (line != null)
+            {
+                await context.Response.WriteAsync(line + "\n");
+                await context.Response.Body.FlushAsync(context.RequestAborted);
+            }
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // Request was cancelled, that's fine
+    }
+    catch (Exception ex)
+    {
+        var errorData = JsonSerializer.Serialize(new
+        {
+            @event = "error",
+            success = false,
+            error = ex.Message,
+            message = "Failed to connect to training service"
+        });
+        await context.Response.WriteAsync($"data: {errorData}\n\n");
+    }
+});
+
 app.MapGet("/api/loras/{userId}", (string userId, FileStorageService storageService) =>
 {
     try

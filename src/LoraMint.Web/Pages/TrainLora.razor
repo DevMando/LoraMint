@@ -1,6 +1,9 @@
 @page "/train-lora"
+@using Microsoft.JSInterop
 @inject HttpClient Http
+@inject IJSRuntime JS
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 
 <PageTitle>Train LoRA</PageTitle>
 
@@ -11,15 +14,25 @@
         <RadzenCard>
             <RadzenStack Gap="1rem">
                 <RadzenFormField Text="LoRA Name">
-                    <RadzenTextBox @bind-Value="loraName" Placeholder="e.g., anime_style_v1" Style="width: 100%;" />
+                    <RadzenTextBox @bind-Value="loraName"
+                        Placeholder="e.g., anime_style_v1"
+                        Style="width: 100%;"
+                        Disabled="@isTraining" />
                 </RadzenFormField>
 
                 <RadzenFormField Text="User ID">
-                    <RadzenTextBox @bind-Value="userId" Placeholder="Enter your user ID" Style="width: 100%;" />
+                    <RadzenTextBox @bind-Value="userId"
+                        Placeholder="Enter your user ID"
+                        Style="width: 100%;"
+                        Disabled="@isTraining" />
                 </RadzenFormField>
 
                 <RadzenFormField Text="Upload Reference Images (1-5 images)" Style="margin-bottom: 0;">
-                    <InputFile OnChange="HandleFileSelection" multiple accept="image/*" class="rz-fileupload-choose" />
+                    <InputFile OnChange="HandleFileSelection"
+                        multiple
+                        accept="image/*"
+                        class="rz-fileupload-choose"
+                        disabled="@isTraining" />
                     <RadzenText TextStyle="TextStyle.Caption" Style="display: block; margin-top: 0.25rem; color: var(--rz-text-secondary-color);">
                         Upload 1 to 5 reference images for training
                     </RadzenText>
@@ -32,17 +45,139 @@
                         <RadzenStack Gap="0.25rem">
                             @foreach (var file in selectedFiles)
                             {
-                                <RadzenText>• @file.Name (@(file.Size / 1024) KB)</RadzenText>
+                                <RadzenText>@file.Name (@(file.Size / 1024) KB)</RadzenText>
                             }
                         </RadzenStack>
                     </div>
+                }
+
+                @* Fast Mode Toggle *@
+                <RadzenCard Style="background: var(--rz-base-800); padding: 1rem;">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                        <RadzenStack Gap="0.25rem">
+                            <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 500;">Fast Mode</RadzenText>
+                            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                Faster training with slightly reduced quality (~40% faster)
+                            </RadzenText>
+                        </RadzenStack>
+                        <RadzenSwitch @bind-Value="fastMode" Disabled="@isTraining" />
+                    </RadzenStack>
+                </RadzenCard>
+
+                @* Advanced Settings Toggle *@
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenCheckBox @bind-Value="showAdvancedSettings" Name="advancedToggle" Disabled="@isTraining" />
+                    <RadzenLabel Text="Show Advanced Settings" Component="advancedToggle" />
+                </RadzenStack>
+
+                @* Advanced Settings Panel *@
+                @if (showAdvancedSettings)
+                {
+                    <RadzenCard Style="background: var(--rz-base-800); padding: 1rem;">
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem;">Advanced Settings</RadzenText>
+                        <RadzenStack Gap="1rem">
+                            <RadzenFormField Text="Training Epochs" Style="width: 100%;">
+                                <RadzenNumeric @bind-Value="numEpochs"
+                                    Min="50" Max="500" Step="10"
+                                    Placeholder="Auto (based on image count)"
+                                    Style="width: 100%;"
+                                    Disabled="@isTraining" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                    Leave at 0 for auto (50-200 based on image count). Higher = better quality, longer training.
+                                </RadzenText>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Learning Rate" Style="width: 100%;">
+                                <RadzenDropDown @bind-Value="learningRate"
+                                    Data="@learningRateOptions"
+                                    TextProperty="Label"
+                                    ValueProperty="Value"
+                                    Style="width: 100%;"
+                                    Disabled="@isTraining" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                    Lower = more stable, Higher = faster but may overfit.
+                                </RadzenText>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="LoRA Rank" Style="width: 100%;">
+                                <RadzenDropDown @bind-Value="loraRank"
+                                    Data="@loraRankOptions"
+                                    TextProperty="Label"
+                                    ValueProperty="Value"
+                                    Style="width: 100%;"
+                                    Disabled="@isTraining" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                    Higher rank = more capacity but larger file size.
+                                </RadzenText>
+                            </RadzenFormField>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenStack Gap="0.25rem">
+                                    <RadzenText TextStyle="TextStyle.Body1">Prior Preservation</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                        Prevents overfitting (recommended for 1-3 images)
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenSwitch @bind-Value="withPriorPreservation" Disabled="@isTraining" />
+                            </RadzenStack>
+                        </RadzenStack>
+                    </RadzenCard>
+                }
+
+                @* Progress Section *@
+                @if (isTraining)
+                {
+                    <RadzenCard Style="background: var(--rz-base-800); padding: 1rem;">
+                        <RadzenStack Gap="0.75rem">
+                            @* Pipeline Steps Indicator *@
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center">
+                                <RadzenBadge BadgeStyle="@(GetStepBadgeStyle(1))" Text="1" Style="width: 24px; height: 24px; border-radius: 50%;" />
+                                <RadzenText Style="font-size: 0.7rem; color: var(--rz-text-secondary-color);">Class Images</RadzenText>
+                                <span style="color: var(--rz-text-tertiary-color);">→</span>
+                                <RadzenBadge BadgeStyle="@(GetStepBadgeStyle(2))" Text="2" Style="width: 24px; height: 24px; border-radius: 50%;" />
+                                <RadzenText Style="font-size: 0.7rem; color: var(--rz-text-secondary-color);">Load Models</RadzenText>
+                                <span style="color: var(--rz-text-tertiary-color);">→</span>
+                                <RadzenBadge BadgeStyle="@(GetStepBadgeStyle(3))" Text="3" Style="width: 24px; height: 24px; border-radius: 50%;" />
+                                <RadzenText Style="font-size: 0.7rem; color: var(--rz-text-secondary-color);">Train</RadzenText>
+                                <span style="color: var(--rz-text-tertiary-color);">→</span>
+                                <RadzenBadge BadgeStyle="@(GetStepBadgeStyle(4))" Text="4" Style="width: 24px; height: 24px; border-radius: 50%;" />
+                                <RadzenText Style="font-size: 0.7rem; color: var(--rz-text-secondary-color);">Save</RadzenText>
+                            </RadzenStack>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenBadge BadgeStyle="@GetPhaseBadgeStyle()" Text="@GetPhaseDisplayName()" />
+                                @if (fastMode)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="FAST" />
+                                }
+                                <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 500;">
+                                    @progressMessage
+                                </RadzenText>
+                            </RadzenStack>
+                            <RadzenProgressBar Value="@progressPercentage"
+                                ShowValue="true"
+                                Style="height: 24px;"
+                                ProgressBarStyle="ProgressBarStyle.Success" />
+                            @if (totalSteps > 0)
+                            {
+                                <RadzenText TextStyle="TextStyle.Caption"
+                                    Style="color: var(--rz-text-secondary-color);">
+                                    Step @currentStep of @totalSteps
+                                    @if (currentLoss > 0)
+                                    {
+                                        <text> | Loss: @currentLoss.ToString("F4")</text>
+                                    }
+                                </RadzenText>
+                            }
+                        </RadzenStack>
+                    </RadzenCard>
                 }
 
                 <RadzenButton Text="@(isTraining ? "Training..." : "Start Training")"
                              Icon="@(isTraining ? "" : "model_training")"
                              IsBusy="@isTraining"
                              ButtonStyle="ButtonStyle.Success"
-                             Click="@StartTraining"
+                             Click="@StartTrainingWithProgress"
                              Disabled="@isTraining" />
 
                 @if (!string.IsNullOrEmpty(errorMessage))
@@ -66,13 +201,42 @@
         <RadzenCard>
             <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">Training Tips</RadzenText>
             <RadzenStack Gap="0.5rem">
-                <RadzenText>• Upload 1-5 high-quality reference images</RadzenText>
-                <RadzenText>• Images should be clear and well-lit</RadzenText>
-                <RadzenText>• Use consistent subject matter</RadzenText>
-                <RadzenText>• Training may take several minutes</RadzenText>
-                <RadzenText>• Name your LoRA descriptively</RadzenText>
+                <RadzenText>Upload 1-5 high-quality reference images</RadzenText>
+                <RadzenText>Images should be clear and well-lit</RadzenText>
+                <RadzenText>Use consistent subject matter</RadzenText>
+                <RadzenText>Training takes 10-30 minutes depending on settings</RadzenText>
+                <RadzenText>Name your LoRA descriptively</RadzenText>
             </RadzenStack>
         </RadzenCard>
+
+        <RadzenCard Style="margin-top: 1rem;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">Mode Comparison</RadzenText>
+            <RadzenStack Gap="0.5rem">
+                <RadzenText><strong>Standard Mode:</strong></RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">~50 class images, full epochs</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">Best quality, 15-30 min</RadzenText>
+                <RadzenText Style="margin-top: 0.5rem;"><strong>Fast Mode:</strong></RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">~25 class images, 75% epochs</RadzenText>
+                <RadzenText TextStyle="TextStyle.Caption">Good quality, 8-15 min</RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+
+        @if (!string.IsNullOrEmpty(trainedTriggerWord))
+        {
+            <RadzenCard Style="margin-top: 1rem;">
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Training Complete!</RadzenText>
+                <RadzenStack Gap="0.5rem">
+                    <RadzenText><strong>Trigger Word:</strong></RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body1"
+                        Style="background: var(--rz-base-700); padding: 0.5rem; border-radius: 4px; font-family: monospace;">
+                        @trainedTriggerWord
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                        Use this trigger word in your prompts to activate the trained style.
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        }
     </RadzenColumn>
 </RadzenRow>
 
@@ -83,6 +247,47 @@
     private string errorMessage = string.Empty;
     private string successMessage = string.Empty;
     private List<IBrowserFile> selectedFiles = new();
+
+    // Training settings
+    private bool fastMode = false;
+    private bool showAdvancedSettings = false;
+    private int numEpochs = 0; // 0 = auto
+    private double learningRate = 1e-4;
+    private int loraRank = 8;
+    private bool withPriorPreservation = true;
+
+    // Dropdown options
+    private List<LearningRateOption> learningRateOptions = new()
+    {
+        new() { Label = "5e-5 (Conservative)", Value = 5e-5 },
+        new() { Label = "1e-4 (Default)", Value = 1e-4 },
+        new() { Label = "2e-4 (Aggressive)", Value = 2e-4 }
+    };
+
+    private List<LoraRankOption> loraRankOptions = new()
+    {
+        new() { Label = "4 (Small, ~25MB)", Value = 4 },
+        new() { Label = "8 (Default, ~50MB)", Value = 8 },
+        new() { Label = "16 (Large, ~100MB)", Value = 16 },
+        new() { Label = "32 (XL, ~200MB)", Value = 32 }
+    };
+
+    // Progress tracking fields
+    private double progressPercentage = 0;
+    private int currentStep = 0;
+    private int totalSteps = 0;
+    private double currentLoss = 0;
+    private string progressMessage = "Initializing...";
+    private string currentPhase = "setup";
+    private string trainedTriggerWord = string.Empty;
+
+    // JS interop reference
+    private DotNetObjectReference<TrainLora>? dotNetHelper;
+
+    protected override void OnInitialized()
+    {
+        dotNetHelper = DotNetObjectReference.Create(this);
+    }
 
     private void HandleFileSelection(InputFileChangeEventArgs e)
     {
@@ -96,10 +301,17 @@
         }
     }
 
-    private async Task StartTraining()
+    private async Task StartTrainingWithProgress()
     {
         errorMessage = string.Empty;
         successMessage = string.Empty;
+        trainedTriggerWord = string.Empty;
+        progressPercentage = 0;
+        currentStep = 0;
+        totalSteps = 0;
+        currentLoss = 0;
+        progressMessage = fastMode ? "Preparing fast training..." : "Preparing training...";
+        currentPhase = "setup";
 
         if (string.IsNullOrWhiteSpace(loraName))
         {
@@ -114,48 +326,185 @@
         }
 
         isTraining = true;
+        StateHasChanged();
 
         try
         {
-            using var content = new MultipartFormDataContent();
-            content.Add(new StringContent(loraName), "loraName");
-            content.Add(new StringContent(userId), "userId");
-
+            // Build FormData via JS interop
+            // First, read all files into byte arrays
+            var fileData = new List<(string name, byte[] content, string contentType)>();
             foreach (var file in selectedFiles)
             {
-                var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)); // 10MB max
-                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-                content.Add(fileContent, "images", file.Name);
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                fileData.Add((file.Name, ms.ToArray(), file.ContentType));
             }
 
-            var response = await Http.PostAsync("/api/train-lora", content);
-            var result = await response.Content.ReadFromJsonAsync<ApiResponse>();
-
-            if (result?.Success == true)
-            {
-                successMessage = $"LoRA '{loraName}' trained successfully! Path: {result.Result}";
-                loraName = string.Empty;
-                selectedFiles.Clear();
-            }
-            else
-            {
-                errorMessage = result?.Error ?? "Failed to train LoRA";
-            }
+            // Call JS to create FormData and start SSE with all settings
+            await JS.InvokeVoidAsync(
+                "TrainingClient.startTraining",
+                "/api/train-lora/stream",
+                loraName,
+                userId,
+                fileData.Select(f => new { name = f.name, content = Convert.ToBase64String(f.content), contentType = f.contentType }).ToArray(),
+                new {
+                    fast_mode = fastMode,
+                    num_train_epochs = numEpochs > 0 ? numEpochs : (int?)null,
+                    learning_rate = learningRate,
+                    lora_rank = loraRank,
+                    with_prior_preservation = withPriorPreservation
+                },
+                dotNetHelper
+            );
         }
         catch (Exception ex)
         {
             errorMessage = $"Error: {ex.Message}";
-        }
-        finally
-        {
             isTraining = false;
+            StateHasChanged();
         }
     }
 
-    private class ApiResponse
+    private BadgeStyle GetPhaseBadgeStyle()
     {
-        public bool Success { get; set; }
-        public string? Result { get; set; }
+        return currentPhase switch
+        {
+            "setup" => BadgeStyle.Info,
+            "class_generation" => BadgeStyle.Warning,
+            "loading_models" => BadgeStyle.Info,
+            "training" => BadgeStyle.Primary,
+            "saving" => BadgeStyle.Success,
+            _ => BadgeStyle.Secondary
+        };
+    }
+
+    private string GetPhaseDisplayName()
+    {
+        return currentPhase switch
+        {
+            "setup" => "Setup",
+            "class_generation" => "Generating Images",
+            "loading_models" => "Loading Models",
+            "training" => "Training",
+            "saving" => "Saving",
+            "complete" => "Complete",
+            _ => currentPhase
+        };
+    }
+
+    private int GetCurrentPipelineStep()
+    {
+        return currentPhase switch
+        {
+            "setup" => 1,
+            "class_generation" => 1,
+            "loading_models" => 2,
+            "training" => 3,
+            "saving" => 4,
+            "complete" => 4,
+            _ => 1
+        };
+    }
+
+    private BadgeStyle GetStepBadgeStyle(int step)
+    {
+        var currentStep = GetCurrentPipelineStep();
+        if (step < currentStep)
+            return BadgeStyle.Success; // Completed
+        else if (step == currentStep)
+            return BadgeStyle.Primary; // Current
+        else
+            return BadgeStyle.Light; // Pending
+    }
+
+    /// <summary>
+    /// Called by JavaScript when a progress event is received from SSE
+    /// </summary>
+    [JSInvokable]
+    public async Task OnProgressEvent(TrainingProgressEvent evt)
+    {
+        switch (evt.Event)
+        {
+            case "progress":
+                currentPhase = evt.Phase ?? "training";
+                currentStep = evt.Step ?? 0;
+                totalSteps = evt.TotalSteps ?? 0;
+                progressPercentage = evt.Percentage ?? 0;
+                progressMessage = evt.Message ?? "Training...";
+                currentLoss = evt.Loss ?? 0;
+                break;
+
+            case "complete":
+                trainedTriggerWord = evt.TriggerWord ?? string.Empty;
+                successMessage = evt.Message ?? "LoRA trained successfully!";
+                progressPercentage = 100;
+                progressMessage = "Complete!";
+                currentPhase = "complete";
+                isTraining = false;
+
+                // Clear form for next training
+                loraName = string.Empty;
+                selectedFiles.Clear();
+                break;
+
+            case "error":
+                errorMessage = evt.Error ?? "An error occurred during training";
+                isTraining = false;
+                break;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Called by JavaScript when a connection error occurs
+    /// </summary>
+    [JSInvokable]
+    public async Task OnError(string message)
+    {
+        errorMessage = $"Connection error: {message}";
+        isTraining = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("TrainingClient.stopTraining");
+        }
+        catch
+        {
+            // Ignore errors during disposal
+        }
+        dotNetHelper?.Dispose();
+    }
+
+    public class TrainingProgressEvent
+    {
+        public string? Event { get; set; }
+        public string? Phase { get; set; }
+        public int? Step { get; set; }
+        public int? TotalSteps { get; set; }
+        public double? Percentage { get; set; }
+        public double? Loss { get; set; }
+        public string? Message { get; set; }
+        public bool? Success { get; set; }
+        public string? LoraPath { get; set; }
+        public string? TriggerWord { get; set; }
         public string? Error { get; set; }
+    }
+
+    public class LearningRateOption
+    {
+        public string Label { get; set; } = "";
+        public double Value { get; set; }
+    }
+
+    public class LoraRankOption
+    {
+        public string Label { get; set; } = "";
+        public int Value { get; set; }
     }
 }

@@ -14,7 +14,9 @@
       "Bash(netstat.exe:*)",
       "Bash(powershell.exe -Command \"Invoke-RestMethod -Uri ''http://localhost:8000/health'' -Method Get\")",
       "Bash(powershell.exe -Command \"try { \\(Invoke-WebRequest -Uri ''http://localhost:8000/'' -UseBasicParsing -TimeoutSec 5\\).Content } catch { $_.Exception.Message }\")",
-      "Bash(nvidia-smi.exe:*)"
+      "Bash(nvidia-smi.exe:*)",
+      "mcp__solana-mcp-server__Solana_Expert__Ask_For_Help",
+      "WebSearch"
     ]
   }
 }
