@@ -89,10 +89,11 @@ start.bat
 ```
 
 That's it! The application will:
-1. Create Python virtual environment (if needed)
-2. Install dependencies (if needed)
-3. Start the Python backend
-4. Start the Blazor web application
+1. Stop any existing LoraMint instances (automatic cleanup)
+2. Create Python virtual environment (if needed)
+3. Install dependencies (if needed)
+4. Start the Python backend
+5. Start the Blazor web application
 
 Access the app at `https://localhost:5001`
 

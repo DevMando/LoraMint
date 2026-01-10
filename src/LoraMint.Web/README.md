@@ -21,12 +21,13 @@ start.bat
 ```
 
 That's it! The application will:
-1. ✅ Check prerequisites (.NET SDK, Python)
-2. ✅ Create Python virtual environment (if needed)
-3. ✅ Install Python dependencies (if needed)
-4. ✅ Start the Python backend automatically
-5. ✅ Start the Blazor web application
-6. 🌐 Open at `https://localhost:5001`
+1. 🧹 Stop any existing LoraMint instances (automatic cleanup)
+2. ✅ Check prerequisites (.NET SDK, Python)
+3. ✅ Create Python virtual environment (if needed)
+4. ✅ Install Python dependencies (if needed)
+5. ✅ Start the Python backend automatically
+6. ✅ Start the Blazor web application
+7. 🌐 Open at `https://localhost:5001`
 
 **No manual Python setup required!**
 
@@ -162,6 +163,12 @@ ASP.NET Core Minimal APIs for backend endpoints:
 - `POST /api/train-lora` - Train LoRA models
 - `GET /api/loras/{userId}` - List user LoRAs
 - `GET /api/images/{userId}` - List user images
+
+### Static File Serving
+
+Generated images and LoRA files are served from the `data/` directory:
+- `/outputs/{userId}/{filename}` - Generated images from `data/outputs/`
+- `/loras/{userId}/{filename}` - LoRA model files from `data/loras/`
 
 ### Services
 

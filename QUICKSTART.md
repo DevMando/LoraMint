@@ -19,11 +19,12 @@ start.bat
 ```
 
 That's it! The application will:
-1. ✅ Check for .NET SDK and Python
-2. 📦 Create Python virtual environment (if needed)
-3. 📥 Install all dependencies (if needed)
-4. 🚀 Start both the Blazor web app and Python backend
-5. 🌐 Open the app at `https://localhost:5001`
+1. 🧹 Stop any existing LoraMint instances (automatic cleanup)
+2. ✅ Check for .NET SDK and Python
+3. 📦 Create Python virtual environment (if needed)
+4. 📥 Install all dependencies (if needed)
+5. 🚀 Start both the Blazor web app and Python backend
+6. 🌐 Open the app at `https://localhost:5001`
 
 **Note:** The startup process now includes detailed progress indicators:
 - `[STEP 1/3]` Virtual environment creation
@@ -149,12 +150,15 @@ Access the app at `http://localhost:5001`
 - Install .NET 8.0 SDK from https://dotnet.microsoft.com/download
 
 ### Port 8000 already in use
-- Another process is using port 8000
-- Change the port in `src/python-backend/main.py`:
+- The startup scripts automatically kill existing processes on port 8000
+- If you still have issues, manually kill the process:
+  - **Windows:** `taskkill /F /IM python.exe` or check Task Manager
+  - **Linux/macOS:** `lsof -ti:8000 | xargs kill -9`
+- Or change the port in `src/python-backend/main.py`:
   ```python
   uvicorn.run(app, host="0.0.0.0", port=8001)  # Change to 8001
   ```
-- Update `appsettings.json`:
+- And update `appsettings.json`:
   ```json
   {
     "PythonBackend": {
