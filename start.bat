@@ -22,6 +22,16 @@ if !ERRORLEVEL! EQU 0 (
     timeout /t 2 /nobreak >nul
 )
 
+REM Kill any dotnet processes that might be holding file locks
+for /f "tokens=2" %%a in ('tasklist /FI "IMAGENAME eq dotnet.exe" /FO LIST 2^>nul ^| findstr "PID:"') do (
+    wmic process where "ProcessId=%%a" get CommandLine 2>nul | findstr /I "LoraMint" >nul 2>&1
+    if !ERRORLEVEL! EQU 0 (
+        echo [CLEANUP] Stopping dotnet process holding LoraMint files ^(PID: %%a^)...
+        taskkill /F /PID %%a >nul 2>&1
+    )
+)
+timeout /t 1 /nobreak >nul
+
 REM Kill Python process on port 8000 if running
 for /f "tokens=5" %%a in ('netstat -ano 2^>nul ^| findstr ":8000" ^| findstr "LISTENING"') do (
     if not "%%a"=="" (
@@ -84,9 +94,16 @@ echo.
 echo ========================================
 echo.
 
-REM Open browser after a short delay (runs in background)
-echo [BROWSER] Will open https://localhost:5001 in 5 seconds...
-start "" cmd /c "timeout /t 5 /nobreak >nul && start https://localhost:5001"
+REM Clean build cache to avoid file lock issues
+echo [BUILD] Cleaning build cache...
+dotnet clean -v q >nul 2>&1
+if exist "obj\Debug\net8.0\rpswa.dswa.cache.json" (
+    del /f /q "obj\Debug\net8.0\rpswa.dswa.cache.json" >nul 2>&1
+)
+
+REM Open browser when server is ready (runs in background)
+echo [BROWSER] Will open browser when server is ready...
+start "LoraMint Browser Wait" /min cmd /c "%~dp0wait-and-open-browser.bat"
 
 REM Start the application
 dotnet run

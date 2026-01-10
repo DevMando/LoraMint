@@ -2,6 +2,8 @@ using LoraMint.Web.Models;
 using LoraMint.Web.Services;
 using LoraMint.Web.BackgroundServices;
 using Microsoft.Extensions.FileProviders;
+using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,6 +85,77 @@ app.MapPost("/api/generate", async (GenerateRequest request, PythonBackendServic
     catch (Exception ex)
     {
         return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+// SSE Streaming endpoint for image generation with progress
+app.MapPost("/api/generate/stream", async (GenerateRequest request, HttpContext context, IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+
+    context.Response.ContentType = "text/event-stream";
+    context.Response.Headers.Append("Cache-Control", "no-cache");
+    context.Response.Headers.Append("Connection", "keep-alive");
+
+    using var httpClient = new HttpClient();
+    httpClient.Timeout = TimeSpan.FromMinutes(10);
+
+    var json = JsonSerializer.Serialize(request);
+    var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+    try
+    {
+        var request2 = new HttpRequestMessage(HttpMethod.Post, $"{pythonBaseUrl}/generate/stream")
+        {
+            Content = content
+        };
+
+        using var response = await httpClient.SendAsync(
+            request2,
+            HttpCompletionOption.ResponseHeadersRead,
+            context.RequestAborted
+        );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorData = JsonSerializer.Serialize(new
+            {
+                @event = "error",
+                success = false,
+                error = $"Python backend returned status {response.StatusCode}",
+                message = "Failed to connect to generation service"
+            });
+            await context.Response.WriteAsync($"data: {errorData}\n\n");
+            return;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(context.RequestAborted);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream && !context.RequestAborted.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(context.RequestAborted);
+            if (line != null)
+            {
+                await context.Response.WriteAsync(line + "\n");
+                await context.Response.Body.FlushAsync(context.RequestAborted);
+            }
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // Request was cancelled, that's fine
+    }
+    catch (Exception ex)
+    {
+        var errorData = JsonSerializer.Serialize(new
+        {
+            @event = "error",
+            success = false,
+            error = ex.Message,
+            message = "Failed to connect to generation service"
+        });
+        await context.Response.WriteAsync($"data: {errorData}\n\n");
     }
 });
 

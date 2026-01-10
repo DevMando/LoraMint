@@ -72,9 +72,32 @@ echo ""
 echo "========================================"
 echo ""
 
-# Open browser after a short delay (runs in background)
-echo "[BROWSER] Will open https://localhost:5001 in 5 seconds..."
-(sleep 5 && xdg-open https://localhost:5001 2>/dev/null || open https://localhost:5001 2>/dev/null) &
+# Function to wait for server and open browser (runs in background)
+wait_and_open_browser() {
+    echo "[BROWSER] Waiting for server to be ready..."
+    MAX_WAIT=300  # 5 minutes max wait
+    WAITED=0
+    while [ $WAITED -lt $MAX_WAIT ]; do
+        # Try to connect to the server (ignore SSL cert issues for localhost)
+        if curl -sk --connect-timeout 2 https://localhost:5001 > /dev/null 2>&1; then
+            echo "[BROWSER] Server is ready! Opening browser..."
+            sleep 1
+            xdg-open https://localhost:5001 2>/dev/null || open https://localhost:5001 2>/dev/null
+            return 0
+        fi
+        sleep 2
+        WAITED=$((WAITED + 2))
+    done
+    echo "[BROWSER] Timeout waiting for server. Please open https://localhost:5001 manually."
+}
+
+# Clean build cache to avoid file lock issues
+echo "[BUILD] Cleaning build cache..."
+dotnet clean -v q > /dev/null 2>&1
+rm -f obj/Debug/net8.0/rpswa.dswa.cache.json 2>/dev/null
+
+# Start browser wait in background
+wait_and_open_browser &
 
 # Start the application
 dotnet run

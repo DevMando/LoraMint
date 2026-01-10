@@ -1,9 +1,10 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import uvicorn
 import os
+import json
 from pathlib import Path
 
 from models.request_models import GenerateRequest
@@ -61,6 +62,53 @@ async def generate_image(request: GenerateRequest):
         error_details = traceback.format_exc()
         print(f"Error generating image: {error_details}")
         raise HTTPException(status_code=500, detail=f"{str(e)}\n\nTraceback:\n{error_details}")
+
+
+@app.post("/generate/stream")
+async def generate_image_stream(request: GenerateRequest):
+    """
+    Generate an image with SSE progress streaming.
+    Returns Server-Sent Events with progress updates.
+    """
+    async def event_generator():
+        try:
+            print(f"Received streaming generate request: prompt='{request.prompt}', userId='{request.userId}', loras={request.loras}")
+
+            async for event in image_generator.generate_with_progress(
+                prompt=request.prompt,
+                user_id=request.userId,
+                loras=request.loras
+            ):
+                # Format as SSE
+                data = json.dumps(event.to_dict())
+                yield f"data: {data}\n\n"
+
+                # If complete or error, end stream
+                if event.event in ("complete", "error"):
+                    break
+
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error in streaming generation: {error_details}")
+            error_data = json.dumps({
+                "event": "error",
+                "success": False,
+                "error": str(e),
+                "message": "Unexpected error during generation"
+            })
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
 
 @app.post("/train-lora")
 async def train_lora(

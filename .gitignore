@@ -521,6 +521,7 @@ data/loras/
 data/outputs/
 data/temp/
 models/
+!src/LoraMint.Web/Models/
 cache/
 .cache/
 huggingface/
