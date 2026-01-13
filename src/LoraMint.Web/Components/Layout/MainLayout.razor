@@ -2,17 +2,28 @@
 
 <RadzenLayout>
     <RadzenHeader>
-        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 1rem;">
-            <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">LoraMint</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 0.75rem 1.5rem;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <span style="font-size: 1.5rem;">&#x1F9CA;</span>
+                <RadzenText TextStyle="TextStyle.H4" Style="margin: 0;">LoraMint</RadzenText>
+            </RadzenStack>
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-muted); font-family: var(--font-mono);">
+                v1.0 // AI Image Studio
+            </RadzenText>
             <RadzenSpacer />
-            <RadzenLink href="https://learn.microsoft.com/aspnet/core/" Target="_blank" Text="About" />
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></span>
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-secondary); font-family: var(--font-mono);">
+                    System Online
+                </RadzenText>
+            </RadzenStack>
         </RadzenStack>
     </RadzenHeader>
-    <RadzenSidebar>
+    <RadzenSidebar Style="padding-top: 1rem;">
         <NavMenu />
     </RadzenSidebar>
     <RadzenBody>
-        <div style="padding: 1.5rem;">
+        <div style="padding: 1.5rem 2rem;">
             @Body
         </div>
     </RadzenBody>

@@ -1,5 +1,6 @@
 @page "/my-images"
 @using LoraMint.Web.Models
+@using System.Text.Json.Serialization
 @inject HttpClient Http
 @rendermode InteractiveServer
 
@@ -95,8 +96,13 @@
 
     private class ApiResponse
     {
+        [JsonPropertyName("success")]
         public bool Success { get; set; }
+
+        [JsonPropertyName("images")]
         public List<ImageInfo>? Images { get; set; }
+
+        [JsonPropertyName("error")]
         public string? Error { get; set; }
     }
 }

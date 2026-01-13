@@ -3,22 +3,44 @@
 
 <PageTitle>Home</PageTitle>
 
-<RadzenText TextStyle="TextStyle.H2">Welcome to LoraMint</RadzenText>
-<RadzenText TextStyle="TextStyle.Subtitle1" Style="margin-top: 0.5rem;">AI-Powered Image Generation with Custom LoRA Training</RadzenText>
+<div style="margin-bottom: 2rem;">
+    <RadzenText TextStyle="TextStyle.H2" Style="margin-bottom: 0.5rem;">Welcome to LoraMint</RadzenText>
+    <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--text-secondary); font-family: var(--font-mono);">
+        Train it once. Style it forever. <span style="color: var(--accent-cyan);">// AI Image Studio</span>
+    </RadzenText>
+</div>
 
-<RadzenRow Gap="1.5rem" Style="margin-top: 2rem;">
+<RadzenRow Gap="1.5rem">
     <RadzenColumn Size="12" SizeMD="6">
         <RadzenCard Style="height: 100%;">
-            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Generate Images</RadzenText>
-            <RadzenText Style="margin-bottom: 1rem;">Create stunning images from text prompts using Stable Diffusion with optional LoRA models.</RadzenText>
-            <RadzenButton Text="Start Generating" ButtonStyle="ButtonStyle.Primary" Click="@(() => NavigationManager.NavigateTo("/generate"))" />
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="add_photo_alternate" Style="color: var(--gradient-purple); font-size: 1.5rem;" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="margin: 0;">Generate Images</RadzenText>
+                </RadzenStack>
+                <RadzenText Style="color: var(--text-secondary);">
+                    Create stunning images from text prompts using Stable Diffusion XL with optional LoRA models.
+                </RadzenText>
+                <div style="margin-top: auto; padding-top: 0.5rem;">
+                    <RadzenButton Text="./generate --start" ButtonStyle="ButtonStyle.Primary" Click="@(() => NavigationManager.NavigateTo("/generate"))" Style="width: 100%;" />
+                </div>
+            </RadzenStack>
         </RadzenCard>
     </RadzenColumn>
     <RadzenColumn Size="12" SizeMD="6">
         <RadzenCard Style="height: 100%;">
-            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Train Custom LoRAs</RadzenText>
-            <RadzenText Style="margin-bottom: 1rem;">Upload your reference images to train personalized LoRA adapters for unique styles.</RadzenText>
-            <RadzenButton Text="Train LoRA" ButtonStyle="ButtonStyle.Success" Click="@(() => NavigationManager.NavigateTo("/train-lora"))" />
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="lightbulb" Style="color: var(--accent-cyan); font-size: 1.5rem;" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="margin: 0;">Train Custom LoRAs</RadzenText>
+                </RadzenStack>
+                <RadzenText Style="color: var(--text-secondary);">
+                    Upload your reference images to train personalized LoRA adapters for unique artistic styles.
+                </RadzenText>
+                <div style="margin-top: auto; padding-top: 0.5rem;">
+                    <RadzenButton Text="./train --new" ButtonStyle="ButtonStyle.Success" Click="@(() => NavigationManager.NavigateTo("/train-lora"))" Style="width: 100%;" />
+                </div>
+            </RadzenStack>
         </RadzenCard>
     </RadzenColumn>
 </RadzenRow>
@@ -26,19 +48,48 @@
 <RadzenRow Gap="1.5rem" Style="margin-top: 1.5rem;">
     <RadzenColumn Size="12" SizeMD="6">
         <RadzenCard Style="height: 100%;">
-            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">My Images</RadzenText>
-            <RadzenText Style="margin-bottom: 1rem;">Browse and manage your generated images.</RadzenText>
-            <RadzenButton Text="View Gallery" ButtonStyle="ButtonStyle.Info" Click="@(() => NavigationManager.NavigateTo("/my-images"))" />
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="image" Style="color: var(--gradient-pink); font-size: 1.5rem;" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="margin: 0;">My Images</RadzenText>
+                </RadzenStack>
+                <RadzenText Style="color: var(--text-secondary);">
+                    Browse and manage your gallery of AI-generated masterpieces.
+                </RadzenText>
+                <div style="margin-top: auto; padding-top: 0.5rem;">
+                    <RadzenButton Text="./gallery --view" ButtonStyle="ButtonStyle.Info" Click="@(() => NavigationManager.NavigateTo("/my-images"))" Style="width: 100%;" />
+                </div>
+            </RadzenStack>
         </RadzenCard>
     </RadzenColumn>
     <RadzenColumn Size="12" SizeMD="6">
         <RadzenCard Style="height: 100%;">
-            <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">My LoRAs</RadzenText>
-            <RadzenText Style="margin-bottom: 1rem;">View and manage your trained LoRA models.</RadzenText>
-            <RadzenButton Text="View LoRAs" ButtonStyle="ButtonStyle.Warning" Click="@(() => NavigationManager.NavigateTo("/my-loras"))" />
+            <RadzenStack Gap="0.75rem">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenIcon Icon="folder" Style="color: var(--gradient-orange); font-size: 1.5rem;" />
+                    <RadzenText TextStyle="TextStyle.H5" Style="margin: 0;">My LoRAs</RadzenText>
+                </RadzenStack>
+                <RadzenText Style="color: var(--text-secondary);">
+                    View and manage your trained LoRA model collection.
+                </RadzenText>
+                <div style="margin-top: auto; padding-top: 0.5rem;">
+                    <RadzenButton Text="./loras --list" ButtonStyle="ButtonStyle.Warning" Click="@(() => NavigationManager.NavigateTo("/my-loras"))" Style="width: 100%;" />
+                </div>
+            </RadzenStack>
         </RadzenCard>
     </RadzenColumn>
 </RadzenRow>
+
+<div style="margin-top: 2.5rem; padding: 1rem; background: var(--bg-card); border-radius: 8px; border: 1px solid rgba(139, 92, 246, 0.15); font-family: var(--font-mono); font-size: 0.85rem;">
+    <div style="color: var(--text-muted); margin-bottom: 0.5rem;">$ system status</div>
+    <div style="color: var(--accent-cyan);">
+        <span style="color: var(--terminal-green);">[OK]</span> Stable Diffusion XL loaded
+        <br/>
+        <span style="color: var(--terminal-green);">[OK]</span> PEFT/LoRA training ready
+        <br/>
+        <span style="color: var(--text-secondary);">[--]</span> Awaiting user prompt...
+    </div>
+</div>
 
 @code {
     [Inject] NavigationManager NavigationManager { get; set; } = default!;
