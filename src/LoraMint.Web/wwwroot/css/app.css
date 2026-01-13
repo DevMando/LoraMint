@@ -1,36 +1,503 @@
-/* LoraMint Custom Styles */
+/* =========================================
+   LoraMint - Cyberpunk Terminal Theme
+   Purple/Pink/Orange gradients + Cyan accents
+   ========================================= */
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    margin: 0;
+/* -----------------------------------------
+   CSS Custom Properties (Theme Variables)
+   ----------------------------------------- */
+:root {
+    /* Cyberpunk Gradient Colors */
+    --gradient-purple: #8b5cf6;
+    --gradient-pink: #ec4899;
+    --gradient-orange: #f97316;
+    --gradient-cyan: #22d3ee;
+
+    /* Background Colors */
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a24;
+    --bg-elevated: #222230;
+
+    /* Text Colors */
+    --text-primary: #f0f0f5;
+    --text-secondary: #a0a0b0;
+    --text-muted: #606070;
+
+    /* Accent Colors */
+    --accent-cyan: #22d3ee;
+    --accent-green: #10b981;
+    --accent-error: #ef4444;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, var(--gradient-purple), var(--gradient-pink), var(--gradient-orange));
+    --gradient-glow: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(236, 72, 153, 0.4), rgba(249, 115, 22, 0.4));
+    --gradient-subtle: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1));
+
+    /* Terminal Effects */
+    --terminal-green: #4ade80;
+    --terminal-glow: 0 0 10px rgba(34, 211, 238, 0.5);
+    --card-glow: 0 0 20px rgba(139, 92, 246, 0.15);
+
+    /* Fonts */
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-digital: 'Orbitron', 'Rajdhani', sans-serif;
 }
 
-/* File upload input styling for Radzen theme */
+/* -----------------------------------------
+   Base Styles
+   ----------------------------------------- */
+html {
+    background: var(--bg-primary);
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    margin: 0;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* Animated gradient mesh background */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        radial-gradient(ellipse at 20% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 40%, rgba(249, 115, 22, 0.08) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Subtle scanline effect */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* -----------------------------------------
+   Typography - Terminal Style
+   ----------------------------------------- */
+h1, h2, h3, h4, h5, h6,
+.rz-text-h1, .rz-text-h2, .rz-text-h3,
+.rz-text-h4, .rz-text-h5, .rz-text-h6 {
+    font-family: var(--font-mono) !important;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Terminal prompt style for main headings */
+.rz-text-h2::before {
+    content: '>_ ';
+    color: var(--accent-cyan);
+    opacity: 0.8;
+}
+
+/* -----------------------------------------
+   Radzen Layout Overrides
+   ----------------------------------------- */
+
+/* Header */
+.rz-header {
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%) !important;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.3) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 40px rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Logo/Brand styling */
+.rz-header .rz-text-h4 {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: var(--font-mono) !important;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+.rz-header .rz-text-h4::before {
+    content: none;
+}
+
+/* Sidebar */
+.rz-sidebar {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid rgba(139, 92, 246, 0.2) !important;
+}
+
+/* Body/Main content */
+.rz-body {
+    background: var(--bg-primary) !important;
+}
+
+/* -----------------------------------------
+   Navigation Menu
+   ----------------------------------------- */
+.rz-panel-menu {
+    background: transparent !important;
+}
+
+.rz-navigation-item {
+    font-family: var(--font-mono) !important;
+    font-size: 0.9rem;
+    transition: all 0.2s ease !important;
+}
+
+.rz-navigation-item-link {
+    color: var(--text-secondary) !important;
+    border-left: 2px solid transparent;
+    transition: all 0.2s ease !important;
+}
+
+.rz-navigation-item-link:hover {
+    background: rgba(139, 92, 246, 0.1) !important;
+    color: var(--text-primary) !important;
+    border-left-color: var(--gradient-pink) !important;
+}
+
+.rz-navigation-item-link.active,
+.rz-state-active .rz-navigation-item-link {
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), transparent) !important;
+    color: var(--accent-cyan) !important;
+    border-left-color: var(--accent-cyan) !important;
+}
+
+.rz-navigation-item-icon {
+    color: inherit !important;
+}
+
+/* -----------------------------------------
+   Cards
+   ----------------------------------------- */
+.rz-card {
+    background: var(--bg-card) !important;
+    border: 1px solid rgba(139, 92, 246, 0.15) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--card-glow) !important;
+    transition: all 0.3s ease !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.rz-card:hover {
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    box-shadow: 0 0 30px rgba(139, 92, 246, 0.2), 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    transform: translateY(-2px);
+}
+
+/* Gradient accent line on cards */
+.rz-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-primary);
+    opacity: 0.6;
+}
+
+/* -----------------------------------------
+   Buttons
+   ----------------------------------------- */
+.rz-button {
+    font-family: var(--font-mono) !important;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    border-radius: 8px !important;
+    transition: all 0.2s ease !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Primary button - gradient */
+.rz-button.rz-primary {
+    background: var(--gradient-primary) !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+}
+
+.rz-button.rz-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5), 0 0 30px rgba(236, 72, 153, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+/* Secondary button */
+.rz-button.rz-secondary {
+    background: var(--bg-elevated) !important;
+    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+    color: var(--text-primary) !important;
+}
+
+.rz-button.rz-secondary:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-color: var(--gradient-purple) !important;
+}
+
+/* Success button - cyan accent */
+.rz-button.rz-success {
+    background: linear-gradient(135deg, #10b981, #22d3ee) !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3) !important;
+}
+
+/* Info button */
+.rz-button.rz-info {
+    background: linear-gradient(135deg, #3b82f6, var(--gradient-purple)) !important;
+    border: none !important;
+}
+
+/* Warning button */
+.rz-button.rz-warning {
+    background: linear-gradient(135deg, var(--gradient-orange), var(--gradient-pink)) !important;
+    border: none !important;
+}
+
+/* Button loading state */
+.rz-button.rz-busy {
+    opacity: 0.8;
+}
+
+/* -----------------------------------------
+   Form Controls
+   ----------------------------------------- */
+.rz-textbox,
+.rz-textarea,
+.rz-dropdown {
+    background: var(--bg-elevated) !important;
+    border: 1px solid rgba(139, 92, 246, 0.2) !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-sans) !important;
+    transition: all 0.2s ease !important;
+}
+
+.rz-textbox:focus,
+.rz-textarea:focus,
+.rz-dropdown.rz-state-focused {
+    border-color: var(--gradient-purple) !important;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), var(--terminal-glow) !important;
+    outline: none !important;
+}
+
+.rz-textbox::placeholder,
+.rz-textarea::placeholder {
+    color: var(--text-muted) !important;
+}
+
+/* Form field labels */
+.rz-form-field-label {
+    font-family: var(--font-mono) !important;
+    font-size: 0.85rem;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* -----------------------------------------
+   Progress Bars
+   ----------------------------------------- */
+.rz-progressbar {
+    background: var(--bg-elevated) !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+}
+
+.rz-progressbar-value {
+    background: var(--gradient-primary) !important;
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5) !important;
+    transition: width 0.3s ease !important;
+}
+
+.rz-progressbar-circular-value {
+    stroke: url(#gradient) var(--gradient-purple) !important;
+}
+
+/* -----------------------------------------
+   Alerts
+   ----------------------------------------- */
+.rz-alert {
+    border-radius: 8px !important;
+    font-family: var(--font-mono) !important;
+    border: 1px solid transparent !important;
+}
+
+.rz-alert.rz-success {
+    background: rgba(16, 185, 129, 0.1) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+    color: #4ade80 !important;
+}
+
+.rz-alert.rz-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #f87171 !important;
+}
+
+.rz-alert.rz-info {
+    background: rgba(34, 211, 238, 0.1) !important;
+    border-color: rgba(34, 211, 238, 0.3) !important;
+    color: var(--accent-cyan) !important;
+}
+
+/* -----------------------------------------
+   Images in gallery
+   ----------------------------------------- */
+.rz-image {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.rz-card:hover .rz-image {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+/* -----------------------------------------
+   Scrollbar Styling
+   ----------------------------------------- */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--gradient-purple), var(--gradient-pink));
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--gradient-pink), var(--gradient-orange));
+}
+
+/* -----------------------------------------
+   Links
+   ----------------------------------------- */
+a, .rz-link {
+    color: var(--accent-cyan) !important;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+a:hover, .rz-link:hover {
+    color: var(--gradient-pink) !important;
+    text-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+}
+
+/* -----------------------------------------
+   File Upload
+   ----------------------------------------- */
+.rz-fileupload {
+    border: 2px dashed rgba(139, 92, 246, 0.3) !important;
+    border-radius: 12px !important;
+    background: rgba(139, 92, 246, 0.05) !important;
+    transition: all 0.3s ease !important;
+}
+
+.rz-fileupload:hover {
+    border-color: var(--gradient-purple) !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
 .rz-fileupload-choose {
     display: block;
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid var(--rz-border-color);
-    border-radius: var(--rz-border-radius);
-    font-family: inherit;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
 }
 
 .rz-fileupload-choose:focus {
     outline: none;
-    border-color: var(--rz-primary);
+    border-color: var(--gradient-purple);
+    box-shadow: var(--terminal-glow);
 }
 
-/* Blazor error UI */
+/* -----------------------------------------
+   Checkboxes
+   ----------------------------------------- */
+.rz-checkbox-box {
+    border-color: rgba(139, 92, 246, 0.4) !important;
+    background: var(--bg-elevated) !important;
+}
+
+.rz-checkbox-box.rz-state-active {
+    background: var(--gradient-primary) !important;
+    border-color: var(--gradient-purple) !important;
+}
+
+/* -----------------------------------------
+   Custom Classes for Terminal Effects
+   ----------------------------------------- */
+
+/* Blinking cursor effect */
+.terminal-cursor::after {
+    content: '|';
+    animation: blink 1s step-end infinite;
+    color: var(--accent-cyan);
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+/* Glow text */
+.glow-text {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* -----------------------------------------
+   Blazor Error UI
+   ----------------------------------------- */
 #blazor-error-ui {
-    background: lightyellow;
+    background: var(--bg-card);
+    color: var(--accent-error);
+    border-top: 2px solid var(--accent-error);
     bottom: 0;
-    box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 -4px 20px rgba(239, 68, 68, 0.2);
     display: none;
     left: 0;
     padding: 0.6rem 1.25rem 0.7rem 1.25rem;
     position: fixed;
     width: 100%;
     z-index: 1000;
+    font-family: var(--font-mono);
 }
 
 #blazor-error-ui .dismiss {
@@ -38,4 +505,211 @@ body {
     position: absolute;
     right: 0.75rem;
     top: 0.5rem;
+    color: var(--text-secondary);
+}
+
+#blazor-error-ui .reload {
+    color: var(--accent-cyan) !important;
+}
+
+/* -----------------------------------------
+   Responsive Adjustments
+   ----------------------------------------- */
+@media (max-width: 768px) {
+    .rz-text-h2::before {
+        content: '> ';
+    }
+
+    body::after {
+        display: none; /* Remove scanlines on mobile for performance */
+    }
+}
+
+/* -----------------------------------------
+   Digital/Cyberpunk Title Styling
+   ----------------------------------------- */
+.digital-title {
+    font-family: var(--font-digital) !important;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    position: relative;
+}
+
+.digital-title::before {
+    content: none !important;
+}
+
+.digital-title::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--gradient-primary);
+    opacity: 0.6;
+}
+
+/* -----------------------------------------
+   Loading Dots Animation
+   ----------------------------------------- */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 1.5rem;
+}
+
+.loading-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.loading-dots .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gradient-purple);
+    animation: dot-pulse 1.4s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--gradient-purple);
+}
+
+.loading-dots .dot:nth-child(1) {
+    background: var(--gradient-purple);
+    box-shadow: 0 0 10px var(--gradient-purple);
+    animation-delay: 0s;
+}
+
+.loading-dots .dot:nth-child(2) {
+    background: var(--gradient-pink);
+    box-shadow: 0 0 10px var(--gradient-pink);
+    animation-delay: 0.2s;
+}
+
+.loading-dots .dot:nth-child(3) {
+    background: var(--gradient-orange);
+    box-shadow: 0 0 10px var(--gradient-orange);
+    animation-delay: 0.4s;
+}
+
+@keyframes dot-pulse {
+    0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+/* Glowing ring animation */
+.loading-ring {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.loading-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--gradient-purple);
+    border-right-color: var(--gradient-pink);
+    animation: ring-spin 1s linear infinite;
+}
+
+.loading-ring::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-bottom-color: var(--gradient-orange);
+    border-left-color: var(--accent-cyan);
+    animation: ring-spin 1.5s linear infinite reverse;
+}
+
+@keyframes ring-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Step counter styling */
+.step-counter {
+    font-family: var(--font-digital);
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 15px var(--accent-cyan);
+}
+
+.step-label {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Progress message */
+.progress-message {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    animation: text-flicker 2s ease-in-out infinite;
+}
+
+@keyframes text-flicker {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* Generation panel */
+.generation-panel {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.generation-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-primary);
+    animation: gradient-shift 2s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
 }

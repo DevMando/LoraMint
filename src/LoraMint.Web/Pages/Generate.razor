@@ -9,6 +9,93 @@
 
 <PageTitle>Generate Image</PageTitle>
 
+<style>
+    .dots-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .pulse-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        animation: pulse-animation 1.4s ease-in-out infinite;
+    }
+
+    .pulse-dot:nth-child(1) {
+        background: #8b5cf6;
+        box-shadow: 0 0 12px #8b5cf6;
+        animation-delay: 0s;
+    }
+
+    .pulse-dot:nth-child(2) {
+        background: #ec4899;
+        box-shadow: 0 0 12px #ec4899;
+        animation-delay: 0.2s;
+    }
+
+    .pulse-dot:nth-child(3) {
+        background: #f97316;
+        box-shadow: 0 0 12px #f97316;
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes pulse-animation {
+        0%, 80%, 100% {
+            transform: scale(0.6);
+            opacity: 0.5;
+        }
+        40% {
+            transform: scale(1.3);
+            opacity: 1;
+        }
+    }
+
+    .spin-ring {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        position: relative;
+        margin: 1rem auto;
+    }
+
+    .spin-ring::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: #8b5cf6;
+        border-right-color: #ec4899;
+        animation: spin-anim 1s linear infinite;
+    }
+
+    .spin-ring::after {
+        content: '';
+        position: absolute;
+        inset: 8px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        border-bottom-color: #f97316;
+        border-left-color: #22d3ee;
+        animation: spin-anim 1.5s linear infinite reverse;
+    }
+
+    @@keyframes spin-anim {
+        to { transform: rotate(360deg); }
+    }
+
+    .step-display {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #22d3ee;
+        text-shadow: 0 0 20px #22d3ee;
+    }
+</style>
+
 <RadzenText TextStyle="TextStyle.H2" Style="margin-bottom: 1.5rem;">Generate Image</RadzenText>
 
 <RadzenRow Gap="1.5rem">
@@ -45,39 +132,54 @@
                     }
                     else
                     {
-                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">No LoRAs available. Train one first!</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-secondary);">No LoRAs available. Train one first!</RadzenText>
                     }
                 </RadzenFormField>
 
-                @* Progress Section *@
+                @* Generation Loading State *@
                 @if (isGenerating)
                 {
-                    <RadzenCard Style="background: var(--rz-base-800); padding: 1rem;">
-                        <RadzenStack Gap="0.5rem">
-                            <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 500;">
-                                @progressMessage
-                            </RadzenText>
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.08)); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 12px; padding: 2rem; text-align: center;">
+                        @* Step Counter *@
+                        <div style="margin-bottom: 1rem;">
+                            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #a0a0b0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;">Processing Step</div>
+                            <div class="step-display">@currentStep / @totalSteps</div>
+                        </div>
+
+                        @* Spinning Ring *@
+                        <div class="spin-ring"></div>
+
+                        @* Loading Dots *@
+                        <div class="dots-container" style="margin: 1.5rem 0;">
+                            <div class="pulse-dot"></div>
+                            <div class="pulse-dot"></div>
+                            <div class="pulse-dot"></div>
+                        </div>
+
+                        @* Progress Message *@
+                        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: #f0f0f5; margin-bottom: 1rem;">@progressMessage</div>
+
+                        @* Progress Bar *@
+                        <div style="max-width: 300px; margin: 0 auto;">
                             <RadzenProgressBar Value="@progressPercentage"
                                 ShowValue="true"
-                                Style="height: 24px;"
+                                Style="height: 8px;"
                                 ProgressBarStyle="ProgressBarStyle.Primary" />
-                            <RadzenText TextStyle="TextStyle.Caption"
-                                Style="color: var(--rz-text-secondary-color);">
-                                Step @currentStep of @totalSteps
-                            </RadzenText>
-                        </RadzenStack>
-                    </RadzenCard>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    @* Generate Button - Only shown when not generating *@
+                    <RadzenButton Text="./generate --execute"
+                                 Icon="add_photo_alternate"
+                                 ButtonStyle="ButtonStyle.Primary"
+                                 Click="@GenerateImageWithProgress"
+                                 Style="width: 100%; padding: 1rem; font-size: 1rem;" />
                 }
 
-                <RadzenButton Text="@(isGenerating ? "Generating..." : "Generate Image")"
-                             Icon="@(isGenerating ? "" : "add_photo_alternate")"
-                             IsBusy="@isGenerating"
-                             ButtonStyle="ButtonStyle.Primary"
-                             Click="@GenerateImageWithProgress"
-                             Disabled="@isGenerating" />
-
-                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-tertiary-color); margin-top: 0.5rem;">
-                    Powered by Stable Diffusion XL
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-muted); margin-top: 0.5rem; font-family: var(--font-mono);">
+                    // Powered by Stable Diffusion XL
                 </RadzenText>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
@@ -101,8 +203,23 @@
         @if (!string.IsNullOrEmpty(generatedImagePath))
         {
             <RadzenCard>
-                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">Generated Image</RadzenText>
-                <RadzenImage Path="@generatedImagePath" Style="width: 100%; height: auto;" AlternateText="Generated image" />
+                <h5 class="digital-title" style="margin-bottom: 1rem; font-size: 1rem;">Output</h5>
+                <RadzenImage Path="@generatedImagePath" Style="width: 100%; height: auto; border-radius: 8px;" AlternateText="Generated image" />
+            </RadzenCard>
+        }
+        else if (isGenerating)
+        {
+            <RadzenCard Style="min-height: 300px; display: flex; align-items: center; justify-content: center;">
+                <div style="text-align: center;">
+                    <div class="dots-container" style="margin-bottom: 1rem;">
+                        <div class="pulse-dot"></div>
+                        <div class="pulse-dot"></div>
+                        <div class="pulse-dot"></div>
+                    </div>
+                    <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #606070;">
+                        Rendering output...
+                    </div>
+                </div>
             </RadzenCard>
         }
     </RadzenColumn>
