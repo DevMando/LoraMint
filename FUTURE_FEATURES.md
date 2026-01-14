@@ -51,6 +51,35 @@ Issues encountered during initial setup that this page should help prevent:
 
 ---
 
+## UI Theme & Styling
+
+**Priority:** Medium
+**Status:** Implemented
+
+A cyberpunk terminal-inspired dark theme with gradient accents.
+
+### Implemented Features
+- [x] Dark theme base (Radzen dark-base.css)
+- [x] Cyberpunk gradient color palette (purple/pink/orange)
+- [x] Cyan accent color for highlights
+- [x] Terminal-style typography (JetBrains Mono font)
+- [x] Gradient mesh background with scanline effect
+- [x] Styled cards with gradient accent lines
+- [x] Gradient buttons with glow effects
+- [x] Custom scrollbar styling
+- [x] Terminal prompt prefix (`>_`) on headings
+- [x] Animated loading dots (pulsing gradient colors)
+- [x] Spinning ring animation for generation progress
+- [x] Step counter with digital font (Orbitron)
+- [x] Glowing UI elements
+
+### Remaining Features
+- [ ] Theme switcher (light/dark modes)
+- [ ] Custom color palette options
+- [ ] Reduced motion accessibility option
+
+---
+
 ## Real-Time Generation Progress
 
 **Priority:** Medium
@@ -63,6 +92,8 @@ Real-time progress updates are implemented using Server-Sent Events (SSE) instea
 - [x] Phase indicators for training (class_generation, loading_models, training, saving)
 - [x] Loss value display during training
 - [x] Percentage completion
+- [x] Animated loading states (pulsing dots, spinning ring)
+- [x] Digital step counter display
 
 ### Remaining Features
 - [ ] Estimated time remaining

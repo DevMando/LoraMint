@@ -86,10 +86,10 @@
                     {
                         @if (model.Id == SelectedModelId)
                         {
-                            <RadzenButton Text="Selected"
+                            <RadzenButton Text="Reload"
                                          ButtonStyle="ButtonStyle.Success"
                                          Size="ButtonSize.Small"
-                                         Disabled="true"
+                                         Click="@(() => OnSelectModel(model))"
                                          Style="width: 100%;" />
                         }
                         else

@@ -244,7 +244,7 @@ class ModelManager:
             downloaded_path = snapshot_download(
                 repo_id=config.huggingface_id,
                 local_dir=str(model_path),
-                ignore_patterns=["*.md", "*.txt", "*.gitignore", "*.onnx", "*.onnx_data"],
+                ignore_patterns=["*.md", "README.txt", "LICENSE.txt", "*.gitignore", "*.onnx", "*.onnx_data"],
                 max_workers=1  # Single download at a time - gentlest on home networks
             )
 
