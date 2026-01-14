@@ -52,11 +52,24 @@ Models are downloaded on-demand through the setup wizard or settings page. Each 
 LoraMint/
 ├── src/
 │   ├── LoraMint.Web/              # Blazor Server application
+│   │   ├── BackgroundServices/    # Hosted services
+│   │   │   └── PythonBackendHostedService.cs
 │   │   ├── Components/            # Blazor components
+│   │   │   ├── Layout/            # MainLayout, NavMenu
 │   │   │   └── Shared/            # Reusable components (ModelComparisonTable)
-│   │   ├── Models/                # Data models (ModelConfig, etc.)
-│   │   ├── Pages/                 # Razor pages (Setup, Settings, Generate, etc.)
-│   │   ├── Services/              # C# services (ModelConfigurationService)
+│   │   ├── Models/                # Data models (ModelConfig, GenerateRequest, etc.)
+│   │   ├── Pages/                 # Razor pages
+│   │   │   ├── Setup.razor        # First-time setup wizard
+│   │   │   ├── Settings.razor     # Model management settings
+│   │   │   ├── Generate.razor     # Image generation
+│   │   │   ├── TrainLora.razor    # LoRA training
+│   │   │   ├── MyImages.razor     # Image gallery
+│   │   │   └── MyLoras.razor      # LoRA library
+│   │   ├── Services/              # C# services
+│   │   │   ├── PythonBackendService.cs
+│   │   │   ├── FileStorageService.cs
+│   │   │   └── ModelConfigurationService.cs
+│   │   ├── wwwroot/css/           # Cyberpunk terminal theme
 │   │   └── Program.cs             # Minimal API endpoints
 │   │
 │   └── python-backend/            # Python FastAPI backend
@@ -64,17 +77,19 @@ LoraMint/
 │       ├── services/              # AI services
 │       │   ├── image_generator.py # SD image generation
 │       │   ├── model_manager.py   # Model downloading/loading
-│       │   └── lora_trainer.py    # LoRA training
+│       │   └── training/          # LoRA training modules
 │       ├── utils/                 # Utilities
 │       └── main.py                # FastAPI application
 │
 ├── data/                          # Storage (gitignored)
-│   ├── models/                    # Downloaded AI models
+│   ├── models/                    # Downloaded AI models (~7-12GB each)
 │   ├── loras/                     # User LoRA models
 │   ├── outputs/                   # Generated images
-│   └── model-settings.json        # User preferences
+│   └── model-settings.json        # Model preferences
 │
+├── QUICKSTART.md                  # Quick start guide
 ├── PROJECT_INSTRUCTIONS.md        # Detailed specifications
+├── FUTURE_FEATURES.md             # Roadmap and planned features
 ├── docker-compose.yml             # Docker orchestration
 └── README.md                      # This file
 ```
@@ -223,12 +238,12 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 ## 🎨 Features
 
 ### Model Selection & Setup
-- First-time setup wizard with GPU detection
-- Model comparison table with VRAM requirements
-- Color-coded compatibility indicators (green/yellow/red based on VRAM)
-- On-demand model downloading with progress streaming
-- Dynamic "Powered by [Model Name]" label
-- Settings page for model management
+- First-time setup wizard with GPU detection and VRAM display
+- Model comparison table with VRAM requirements and compatibility
+- Color-coded compatibility indicators (green/yellow/red based on available VRAM)
+- On-demand model downloading with SSE progress streaming
+- Dynamic "Powered by [Model Name]" label in the UI
+- Settings page for switching models without restart
 
 ### Cyberpunk Terminal Theme
 - Dark theme with gradient mesh background
@@ -236,30 +251,37 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Terminal-style typography (JetBrains Mono)
 - Animated loading states with pulsing dots and spinning rings
 - Glowing UI elements and scanline effects
+- Terminal prompt prefix (`>_`) on headings
 
 ### Image Generation
 - Text-to-image using SDXL Base, SDXL Turbo, or Z-Image Turbo
-- Optional LoRA model application
-- Multiple LoRAs with adjustable strength
+- Optional LoRA model application with adjustable strength
+- Multiple LoRAs can be combined
 - Real-time generation feedback with animated progress
-- Step counter with visual loading animations
+- Step counter with digital font display (Orbitron)
+- Per-user image storage and organization
 
 ### LoRA Training
-- Upload 1-5 reference images
-- Custom naming for organization
-- Automatic .safetensors format
-- Per-user storage
+- Upload 1-5 reference images for training
+- DreamBooth-style PEFT training with prior preservation
+- Configurable training parameters (epochs, learning rate, LoRA rank)
+- Fast mode option (~40% faster training)
+- Real-time progress streaming with phase indicators
+- Automatic trigger word generation (e.g., `sks_<name>`)
+- Class image caching for faster retries
+- Automatic .safetensors format output
+- Per-user LoRA storage
 
 ### Gallery Management
-- Browse all generated images
+- Browse all generated images per user
 - View generation metadata
-- Filter by date
+- Filter and organize by date
 - Download images
 
 ### LoRA Library
-- List all trained models
-- View file information
-- Quick access for generation
+- List all trained models per user
+- View file information and creation dates
+- Quick access for use in generation
 - Delete unwanted models
 
 ---
@@ -301,27 +323,44 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 ## 🚧 Development Status
 
 ### ✅ Implemented
+
+**Core Features**
 - Blazor Server UI with all pages
 - ASP.NET Core Minimal APIs
 - FastAPI backend structure
-- Image generation pipeline with real-time SSE progress streaming
-- File storage system
+- File storage system with per-user organization
 - Docker support
-- **Automatic Python backend startup**
-- **One-command setup and launch**
-- **Enhanced startup feedback with progress indicators**
+
+**Image Generation**
+- Image generation pipeline with real-time SSE progress streaming
+- Animated loading states (pulsing dots, spinning rings, step counter)
+- Per-user image management and gallery
+
+**LoRA Training**
+- Real LoRA training using DreamBooth-style PEFT (see Known Issues)
+- Training UI with progress streaming and configurable settings
+- Fast mode for quicker training (~40% faster)
+- Automatic trigger word generation
+- Class image caching for faster retries
+
+**Model Management**
+- Multi-model selection (SDXL Base, SDXL Turbo, Z-Image Turbo)
+- Setup wizard for first-time users with GPU detection
+- Model comparison table with VRAM compatibility indicators
+- Settings page for model management
+- Network-friendly model downloads (single-threaded to prevent saturation)
+
+**Developer Experience**
+- Automatic Python backend startup
+- One-command setup and launch (`start.sh` / `start.bat`)
+- Enhanced startup feedback with progress indicators
 - Cross-platform startup scripts (Windows & Linux/macOS)
-- **Automated dependency installation and validation**
-- **Real LoRA training using DreamBooth-style PEFT** (see Known Issues)
-- **Training UI with progress streaming and configurable settings**
-- **Fast mode for quicker training (~40% faster)**
-- **Cyberpunk terminal dark theme with gradient accents**
-- **Animated loading states (pulsing dots, spinning rings)**
-- **Multi-model selection (SDXL Base, SDXL Turbo, Z-Image Turbo)**
-- **Setup wizard for first-time users with GPU detection**
-- **Model comparison table with VRAM compatibility indicators**
-- **Settings page for model management**
-- **Network-friendly model downloads (throttled to prevent saturation)**
+- Automated dependency installation and validation
+
+**UI/UX**
+- Cyberpunk terminal dark theme with gradient accents
+- Terminal-style typography (JetBrains Mono)
+- Glowing UI elements and scanline effects
 
 ### 🔨 In Progress
 - LoRA training memory optimization for 10GB GPUs
@@ -334,6 +373,7 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Batch generation
 - LoRA marketplace
 - Additional model support (SDXL Lightning, Playground v2.5, etc.)
+- Custom model import (safetensors, ckpt)
 
 ---
 
@@ -368,7 +408,9 @@ The current DreamBooth-style LoRA training implementation may experience out-of-
 
 ## 📚 Additional Documentation
 
+- [Quick Start Guide](QUICKSTART.md) - Get up and running fast
 - [Project Instructions](PROJECT_INSTRUCTIONS.md) - Detailed specifications
+- [Future Features](FUTURE_FEATURES.md) - Roadmap and planned features
 - [Python Backend README](src/python-backend/README.md) - Python setup guide
 - [Blazor Web README](src/LoraMint.Web/README.md) - .NET setup guide
 
