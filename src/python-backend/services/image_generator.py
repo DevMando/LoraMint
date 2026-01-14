@@ -4,17 +4,20 @@ import concurrent.futures
 from diffusers import StableDiffusionXLPipeline, AutoPipelineForText2Image
 from pathlib import Path
 import os
-from typing import List, Optional, AsyncGenerator
+from typing import List, Optional, AsyncGenerator, TYPE_CHECKING
 from datetime import datetime
 
 from models.request_models import LoraReference
 from services.progress_callback import ProgressCallback, ProgressEvent
 
+if TYPE_CHECKING:
+    from services.model_manager import ModelManager
+
+
 class ImageGenerator:
-    def __init__(self):
+    def __init__(self, model_manager: Optional["ModelManager"] = None):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.pipeline = None
-        self.model_id = "stabilityai/stable-diffusion-xl-base-1.0"
+        self.model_manager = model_manager
 
         # Use absolute paths based on this file's location
         base_dir = Path(__file__).resolve().parent.parent.parent.parent  # LoraMint/
@@ -24,25 +27,50 @@ class ImageGenerator:
         # Create outputs directory if it doesn't exist
         self.outputs_base_path.mkdir(parents=True, exist_ok=True)
 
+    def set_model_manager(self, model_manager: "ModelManager"):
+        """Set the model manager for this generator."""
+        self.model_manager = model_manager
+
     def is_gpu_available(self) -> bool:
         """Check if GPU is available"""
         return torch.cuda.is_available()
 
-    def load_pipeline(self):
-        """Load the Stable Diffusion pipeline"""
-        if self.pipeline is None:
-            print(f"Loading model: {self.model_id}")
-            self.pipeline = AutoPipelineForText2Image.from_pretrained(
-                self.model_id,
-                torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
-                use_safetensors=True
-            )
-            self.pipeline = self.pipeline.to(self.device)
-            print(f"Model loaded on {self.device}")
+    @property
+    def pipeline(self):
+        """Get the current pipeline from model manager."""
+        if self.model_manager:
+            return self.model_manager.get_pipeline()
+        return None
+
+    def load_pipeline(self, model_id: Optional[str] = None):
+        """Load the Stable Diffusion pipeline via model manager."""
+        if self.model_manager is None:
+            raise RuntimeError("ModelManager not set. Please configure a model first.")
+
+        # If no model is loaded, we can't proceed
+        if self.model_manager.get_pipeline() is None:
+            if model_id:
+                success = self.model_manager.load_model(model_id)
+                if not success:
+                    raise RuntimeError(f"Failed to load model: {model_id}")
+            else:
+                raise RuntimeError("No model loaded. Please select and download a model first.")
+
+        print(f"Using model: {self.model_manager.get_current_model_id()}")
 
     def load_loras(self, user_id: str, loras: Optional[List[LoraReference]]) -> bool:
         """Load LoRA adapters into the pipeline. Returns True if any LoRA was loaded."""
         if not loras:
+            return False
+
+        # Check if current model supports LoRA
+        if self.model_manager and not self.model_manager.supports_lora():
+            print(f"Warning: Current model does not support LoRA. Skipping LoRA loading.")
+            return False
+
+        pipeline = self.pipeline
+        if pipeline is None:
+            print("Warning: No pipeline loaded, cannot load LoRAs")
             return False
 
         loaded_any = False
@@ -51,13 +79,13 @@ class ImageGenerator:
             if lora_path.exists():
                 try:
                     print(f"Loading LoRA: {lora.file} with strength {lora.strength}")
-                    self.pipeline.load_lora_weights(
+                    pipeline.load_lora_weights(
                         str(lora_path.parent),
                         weight_name=lora.file,
                         adapter_name=lora.file.replace('.safetensors', '')
                     )
                     # Set adapter strength
-                    self.pipeline.set_adapters(
+                    pipeline.set_adapters(
                         [lora.file.replace('.safetensors', '')],
                         adapter_weights=[lora.strength]
                     )
@@ -69,6 +97,12 @@ class ImageGenerator:
                 print(f"Warning: LoRA file not found: {lora_path}")
 
         return loaded_any
+
+    def get_inference_steps(self) -> int:
+        """Get the recommended inference steps for the current model."""
+        if self.model_manager:
+            return self.model_manager.get_inference_steps()
+        return 30  # Default fallback
 
     async def generate(
         self,
@@ -90,6 +124,10 @@ class ImageGenerator:
         # Load pipeline if not already loaded
         self.load_pipeline()
 
+        pipeline = self.pipeline
+        if pipeline is None:
+            raise RuntimeError("No pipeline available")
+
         # Load LoRAs if specified
         loras_loaded = False
         if loras:
@@ -104,12 +142,15 @@ class ImageGenerator:
         output_filename = f"generated_{timestamp}.png"
         output_path = user_output_dir / output_filename
 
-        print(f"Generating image with prompt: {prompt}")
+        # Get inference steps from model config
+        num_steps = self.get_inference_steps()
+
+        print(f"Generating image with prompt: {prompt} ({num_steps} steps)")
 
         # Generate image
-        image = self.pipeline(
+        image = pipeline(
             prompt=prompt,
-            num_inference_steps=30,
+            num_inference_steps=num_steps,
             guidance_scale=7.5,
         ).images[0]
 
@@ -120,7 +161,7 @@ class ImageGenerator:
         # Unload LoRAs for next generation
         if loras_loaded:
             try:
-                self.pipeline.unload_lora_weights()
+                pipeline.unload_lora_weights()
             except Exception as e:
                 print(f"Warning: Failed to unload LoRA weights: {e}")
 
@@ -131,7 +172,7 @@ class ImageGenerator:
         prompt: str,
         user_id: str,
         loras: Optional[List[LoraReference]] = None,
-        num_inference_steps: int = 30
+        num_inference_steps: Optional[int] = None
     ) -> AsyncGenerator[ProgressEvent, None]:
         """
         Generate an image with progress streaming via callback.
@@ -141,13 +182,21 @@ class ImageGenerator:
             prompt: Text prompt for image generation
             user_id: User identifier for organizing outputs
             loras: Optional list of LoRA models to apply
-            num_inference_steps: Number of inference steps (default 30)
+            num_inference_steps: Number of inference steps (uses model default if not specified)
 
         Yields:
             ProgressEvent objects with progress updates
         """
         # Load pipeline if not already loaded
         self.load_pipeline()
+
+        pipeline = self.pipeline
+        if pipeline is None:
+            raise RuntimeError("No pipeline available")
+
+        # Get inference steps from model config if not specified
+        if num_inference_steps is None:
+            num_inference_steps = self.get_inference_steps()
 
         # Load LoRAs if specified
         loras_loaded = False
@@ -163,16 +212,19 @@ class ImageGenerator:
         output_filename = f"generated_{timestamp}.png"
         output_path = user_output_dir / output_filename
 
-        print(f"Generating image with prompt: {prompt}")
+        print(f"Generating image with prompt: {prompt} ({num_inference_steps} steps)")
 
         # Create progress callback
         callback = ProgressCallback(total_steps=num_inference_steps)
         loop = asyncio.get_event_loop()
         callback.set_loop(loop)
 
+        # Capture pipeline in closure for thread safety
+        active_pipeline = pipeline
+
         # Function to run pipeline (will be executed in thread pool)
         def run_pipeline():
-            return self.pipeline(
+            return active_pipeline(
                 prompt=prompt,
                 num_inference_steps=num_inference_steps,
                 guidance_scale=7.5,
@@ -214,7 +266,7 @@ class ImageGenerator:
                 # Unload LoRAs for next generation
                 if loras_loaded:
                     try:
-                        self.pipeline.unload_lora_weights()
+                        active_pipeline.unload_lora_weights()
                     except Exception as e:
                         print(f"Warning: Failed to unload LoRA weights: {e}")
 
@@ -228,8 +280,6 @@ class ImageGenerator:
                 yield await callback.queue.get()
 
     def cleanup(self):
-        """Clean up resources"""
-        if self.pipeline is not None:
-            del self.pipeline
-            torch.cuda.empty_cache()
-            self.pipeline = None
+        """Clean up resources via model manager."""
+        if self.model_manager:
+            self.model_manager.cleanup()

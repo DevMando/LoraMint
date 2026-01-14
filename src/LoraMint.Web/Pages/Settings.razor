@@ -1,0 +1,444 @@
+@page "/settings"
+@using LoraMint.Web.Models
+@using LoraMint.Web.Services
+@using LoraMint.Web.Components.Shared
+@using System.Text.Json
+@inject HttpClient Http
+@inject IModelConfigurationService ModelService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Settings - LoraMint</PageTitle>
+
+<RadzenText TextStyle="TextStyle.H2" Style="margin-bottom: 1.5rem;">Settings</RadzenText>
+
+<RadzenTabs>
+    <Tabs>
+        <RadzenTabsItem Text="Models">
+            <div style="padding: 1.5rem 0;">
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">Model Selection</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                    Select and manage AI models for image generation.
+                </RadzenText>
+
+                @if (isLoading)
+                {
+                    <div style="text-align: center; padding: 2rem;">
+                        <div class="spin-ring"></div>
+                        <p style="color: #a0a0b0; margin-top: 1rem;">Loading models...</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- Current Model Info -->
+                    @if (currentModel != null)
+                    {
+                        <RadzenCard Style="margin-bottom: 1.5rem; border-left: 4px solid #8b5cf6;">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                                <div>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted); margin-bottom: 0.25rem;">Current Model</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">@currentModel.Name</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-secondary); margin-top: 0.25rem;">
+                                        @currentModel.InferenceSteps steps | @currentModel.SpeedRating speed | @currentModel.QualityRating quality
+                                    </RadzenText>
+                                </div>
+                                <RadzenSpacer />
+                                @if (currentModel.SupportsLora)
+                                {
+                                    <span style="background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.8rem;">
+                                        LoRA Supported
+                                    </span>
+                                }
+                            </RadzenStack>
+                        </RadzenCard>
+                    }
+
+                    <!-- Model Comparison Table -->
+                    <ModelComparisonTable Models="@availableModels"
+                                         SelectedModelId="@selectedModelId"
+                                         AvailableVramGb="@gpuInfo?.TotalVramGb"
+                                         ShowDescriptions="false"
+                                         OnSelect="@OnModelSelected"
+                                         OnDownload="@OnModelDownload" />
+
+                    @if (isDownloading)
+                    {
+                        <div class="download-progress" style="margin-top: 1.5rem; padding: 1.5rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span style="font-weight: 600;">@downloadMessage</span>
+                                @if (downloadPercentage > 90)
+                                {
+                                    <span style="font-family: 'JetBrains Mono', monospace;">@downloadPercentage.ToString("F0")%</span>
+                                }
+                                else
+                                {
+                                    <span style="font-family: 'JetBrains Mono', monospace; color: #8b5cf6;" class="pulse-text">Downloading...</span>
+                                }
+                            </div>
+                            @if (downloadPercentage > 90)
+                            {
+                                <RadzenProgressBar Value="@downloadPercentage"
+                                                  ShowValue="false"
+                                                  Style="height: 8px;"
+                                                  ProgressBarStyle="ProgressBarStyle.Primary" />
+                            }
+                            else
+                            {
+                                <div class="indeterminate-progress"></div>
+                            }
+                            <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #a0a0b0;">
+                                This may take several minutes depending on your connection speed.
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Success" Variant="Variant.Flat" Shade="Shade.Lighter" Style="margin-top: 1rem;">
+                            @statusMessage
+                        </RadzenAlert>
+                    }
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" Style="margin-top: 1rem;">
+                            @errorMessage
+                        </RadzenAlert>
+                    }
+                }
+            </div>
+        </RadzenTabsItem>
+
+        <RadzenTabsItem Text="System">
+            <div style="padding: 1.5rem 0;">
+                <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 1rem;">System Information</RadzenText>
+
+                @if (gpuInfo != null)
+                {
+                    <RadzenCard Style="margin-bottom: 1rem;">
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">GPU Status</RadzenText>
+                            @if (gpuInfo.Available)
+                            {
+                                <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                                    <div>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">Device</RadzenText>
+                                        <RadzenText Style="color: #22c55e;">@gpuInfo.Name</RadzenText>
+                                    </div>
+                                    <div>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">Total VRAM</RadzenText>
+                                        <RadzenText Style="font-family: 'JetBrains Mono', monospace;">@gpuInfo.TotalVramGb.ToString("F1") GB</RadzenText>
+                                    </div>
+                                    <div>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">Free VRAM</RadzenText>
+                                        <RadzenText Style="@($"font-family: 'JetBrains Mono', monospace; color: {(gpuInfo.FreeVramGb > 8 ? "#22c55e" : "#f97316")};")">
+                                            @gpuInfo.FreeVramGb.ToString("F1") GB
+                                        </RadzenText>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(gpuInfo.CudaVersion))
+                                    {
+                                        <div>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">CUDA</RadzenText>
+                                            <RadzenText Style="font-family: 'JetBrains Mono', monospace;">@gpuInfo.CudaVersion</RadzenText>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <RadzenText Style="color: #f97316;">No GPU detected - running on CPU</RadzenText>
+                            }
+                        </RadzenStack>
+                    </RadzenCard>
+                }
+
+                <RadzenCard>
+                    <RadzenStack Gap="0.5rem">
+                        <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">Storage</RadzenText>
+                        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                            <div>
+                                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">Models Path</RadzenText>
+                                <RadzenText Style="font-family: 'JetBrains Mono', monospace; font-size: 0.9rem;">@modelsPath</RadzenText>
+                            </div>
+                        </div>
+                    </RadzenStack>
+                </RadzenCard>
+            </div>
+        </RadzenTabsItem>
+
+        <RadzenTabsItem Text="About">
+            <div style="padding: 1.5rem 0;">
+                <RadzenCard>
+                    <RadzenStack Gap="1rem">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 2rem;">&#x1F9CA;</span>
+                            <span style="background: linear-gradient(135deg, #8b5cf6, #ec4899, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 1.5rem;">
+                                LoraMint
+                            </span>
+                        </div>
+                        <RadzenText Style="color: var(--text-secondary);">
+                            Train it once. Style it forever. Prompt, mint, and create with your own visual signature.
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">
+                            Version 1.0
+                        </RadzenText>
+                        <div style="margin-top: 1rem;">
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--text-muted);">Technologies:</RadzenText>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                                <span class="tech-badge">Blazor Server</span>
+                                <span class="tech-badge">FastAPI</span>
+                                <span class="tech-badge">Stable Diffusion</span>
+                                <span class="tech-badge">PEFT/LoRA</span>
+                            </div>
+                        </div>
+                    </RadzenStack>
+                </RadzenCard>
+            </div>
+        </RadzenTabsItem>
+    </Tabs>
+</RadzenTabs>
+
+<style>
+    .tech-badge {
+        background: rgba(139, 92, 246, 0.2);
+        color: #8b5cf6;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .spin-ring {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        position: relative;
+        margin: 0 auto;
+    }
+
+    .spin-ring::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: #8b5cf6;
+        border-right-color: #ec4899;
+        animation: spin-anim 1s linear infinite;
+    }
+
+    @@keyframes spin-anim {
+        to { transform: rotate(360deg); }
+    }
+
+    .indeterminate-progress {
+        height: 8px;
+        background: rgba(139, 92, 246, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .indeterminate-progress::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, #8b5cf6, #ec4899, #f97316);
+        border-radius: 4px;
+        animation: indeterminate-slide 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes indeterminate-slide {
+        0% { left: -40%; }
+        100% { left: 100%; }
+    }
+
+    .pulse-text {
+        animation: pulse-opacity 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes pulse-opacity {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool isDownloading = false;
+    private List<ModelInfo> availableModels = new();
+    private ModelInfo? currentModel;
+    private string? selectedModelId;
+    private GpuInfo? gpuInfo;
+    private string modelsPath = "";
+
+    private double downloadPercentage = 0;
+    private string downloadMessage = "";
+    private string statusMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Load GPU info
+            var gpuResponse = await Http.GetFromJsonAsync<GpuInfoResponse>("/api/system/gpu");
+            if (gpuResponse?.Success == true)
+            {
+                gpuInfo = new GpuInfo
+                {
+                    Available = gpuResponse.Available,
+                    Name = gpuResponse.Name ?? "Unknown",
+                    TotalVramGb = gpuResponse.TotalVramGb,
+                    FreeVramGb = gpuResponse.FreeVramGb,
+                    CudaVersion = gpuResponse.CudaVersion
+                };
+            }
+
+            // Load models
+            availableModels = await ModelService.GetAvailableModelsAsync();
+
+            // Load current model
+            currentModel = await ModelService.GetSelectedModelAsync();
+            selectedModelId = currentModel?.Id;
+
+            // Load storage path
+            modelsPath = ModelService.GetModelsPath();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading settings: {ex.Message}";
+        }
+
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task OnModelSelected(ModelInfo model)
+    {
+        statusMessage = "";
+        errorMessage = "";
+
+        try
+        {
+            // Save settings
+            var settings = await ModelService.GetSettingsAsync();
+            settings.SelectedModelId = model.Id;
+            await ModelService.SaveSettingsAsync(settings);
+
+            // Load the model
+            var loadResponse = await Http.PostAsync($"/api/models/{model.Id}/load", null);
+            if (loadResponse.IsSuccessStatusCode)
+            {
+                selectedModelId = model.Id;
+                currentModel = model;
+                statusMessage = $"Switched to {model.Name} successfully!";
+            }
+            else
+            {
+                errorMessage = "Failed to load model. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error selecting model: {ex.Message}";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task OnModelDownload(ModelInfo model)
+    {
+        isDownloading = true;
+        downloadPercentage = 0;
+        downloadMessage = $"Starting download of {model.Name}...";
+        errorMessage = "";
+        statusMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"/api/models/{model.Id}/download", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (string.IsNullOrEmpty(line) || !line.StartsWith("data: "))
+                        continue;
+
+                    var json = line.Substring(6);
+                    var progress = JsonSerializer.Deserialize<DownloadProgressEvent>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (progress != null)
+                    {
+                        downloadPercentage = progress.Percentage;
+                        downloadMessage = progress.Message ?? "Downloading...";
+
+                        if (progress.Event == "complete")
+                        {
+                            await LoadData();
+                            statusMessage = $"{model.Name} downloaded successfully!";
+                            break;
+                        }
+                        else if (progress.Event == "error")
+                        {
+                            errorMessage = progress.Error ?? "Download failed";
+                            break;
+                        }
+
+                        StateHasChanged();
+                    }
+                }
+            }
+            else
+            {
+                errorMessage = "Failed to start download";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Download error: {ex.Message}";
+        }
+
+        isDownloading = false;
+        StateHasChanged();
+    }
+
+    // Response classes
+    private class GpuInfoResponse
+    {
+        public bool Success { get; set; }
+        public bool Available { get; set; }
+        public string? Name { get; set; }
+        public double TotalVramGb { get; set; }
+        public double FreeVramGb { get; set; }
+        public string? CudaVersion { get; set; }
+    }
+
+    private class DownloadProgressEvent
+    {
+        public string Event { get; set; } = "";
+        public string? ModelId { get; set; }
+        public double Percentage { get; set; }
+        public double DownloadedMb { get; set; }
+        public double TotalMb { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+    }
+}

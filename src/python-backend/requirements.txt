@@ -11,6 +11,7 @@ accelerate==0.34.0
 safetensors==0.4.5
 peft==0.13.0
 pillow==10.4.0
+hf_xet>=1.0.0         # Faster HuggingFace downloads via Xet storage
 numpy==1.26.4
 # LoRA Training dependencies
 bitsandbytes==0.43.0  # 8-bit Adam optimizer for memory efficiency

@@ -6,10 +6,12 @@ import uvicorn
 import os
 import json
 from pathlib import Path
+from dataclasses import asdict
 
 from models.request_models import GenerateRequest
 from services.image_generator import ImageGenerator
 from services.lora_trainer import LoraTrainer
+from services.model_manager import ModelManager
 from utils.file_handler import FileHandler
 
 app = FastAPI(title="LoraMint Python Backend", version="1.0.0")
@@ -24,7 +26,8 @@ app.add_middleware(
 )
 
 # Initialize services
-image_generator = ImageGenerator()
+model_manager = ModelManager()
+image_generator = ImageGenerator(model_manager=model_manager)
 lora_trainer = LoraTrainer()
 file_handler = FileHandler()
 
@@ -34,7 +37,14 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "gpu_available": image_generator.is_gpu_available()}
+    gpu_info = model_manager.get_gpu_info()
+    current_model = model_manager.get_current_model_id()
+    return {
+        "status": "healthy",
+        "gpu_available": gpu_info.available,
+        "gpu_name": gpu_info.name,
+        "current_model": current_model
+    }
 
 @app.post("/generate")
 async def generate_image(request: GenerateRequest):
@@ -365,6 +375,192 @@ async def list_user_images(user_id: str):
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# Model Management Endpoints
+# ============================================================
+
+@app.get("/models")
+async def list_models():
+    """
+    List all available models with their download status.
+    """
+    try:
+        models = model_manager.get_available_models()
+        return JSONResponse(content={
+            "success": True,
+            "models": models,
+            "current_model": model_manager.get_current_model_id()
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/models/{model_id}/status")
+async def get_model_status(model_id: str):
+    """
+    Check if a specific model is downloaded.
+    """
+    try:
+        config = model_manager.get_model_config(model_id)
+        if not config:
+            return JSONResponse(content={
+                "success": False,
+                "error": f"Unknown model: {model_id}"
+            }, status_code=404)
+
+        is_downloaded = model_manager.is_model_downloaded(model_id)
+        local_path = str(model_manager._get_model_path(model_id)) if is_downloaded else None
+
+        return JSONResponse(content={
+            "success": True,
+            "isDownloaded": is_downloaded,
+            "localPath": local_path
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/models/{model_id}/download")
+async def download_model(model_id: str):
+    """
+    Download a model from HuggingFace Hub with SSE progress streaming.
+    """
+    async def event_generator():
+        try:
+            async for progress in model_manager.download_model(model_id):
+                data = {
+                    "event": progress.event,
+                    "modelId": progress.model_id,
+                    "percentage": progress.percentage,
+                    "downloadedMb": progress.downloaded_mb,
+                    "totalMb": progress.total_mb,
+                    "message": progress.message,
+                    "error": progress.error
+                }
+                yield f"data: {json.dumps(data)}\n\n"
+
+                if progress.event in ("complete", "error"):
+                    break
+
+        except Exception as e:
+            error_data = {
+                "event": "error",
+                "modelId": model_id,
+                "error": str(e),
+                "message": "Unexpected error during download"
+            }
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.post("/models/{model_id}/load")
+async def load_model(model_id: str):
+    """
+    Load a model into GPU memory.
+    """
+    try:
+        config = model_manager.get_model_config(model_id)
+        if not config:
+            return JSONResponse(content={
+                "success": False,
+                "error": f"Unknown model: {model_id}"
+            }, status_code=404)
+
+        success = model_manager.load_model(model_id)
+        if success:
+            return JSONResponse(content={
+                "success": True,
+                "message": f"Model {config.name} loaded successfully",
+                "modelId": model_id,
+                "modelName": config.name,
+                "inferenceSteps": config.inference_steps,
+                "supportsLora": config.supports_lora
+            })
+        else:
+            return JSONResponse(content={
+                "success": False,
+                "error": "Failed to load model. Check if model is downloaded and GPU has enough memory."
+            }, status_code=500)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/models/unload")
+async def unload_model():
+    """
+    Unload the current model from GPU memory.
+    """
+    try:
+        model_manager.unload_model()
+        return JSONResponse(content={
+            "success": True,
+            "message": "Model unloaded successfully"
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/system/gpu")
+async def get_gpu_info():
+    """
+    Get GPU information including available VRAM.
+    """
+    try:
+        gpu_info = model_manager.get_gpu_info()
+        return JSONResponse(content={
+            "success": True,
+            "available": gpu_info.available,
+            "name": gpu_info.name,
+            "totalVramGb": gpu_info.total_vram_gb,
+            "freeVramGb": gpu_info.free_vram_gb,
+            "cudaVersion": gpu_info.cuda_version
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/models/current")
+async def get_current_model():
+    """
+    Get the currently loaded model information.
+    """
+    try:
+        current_id = model_manager.get_current_model_id()
+        if not current_id:
+            return JSONResponse(content={
+                "success": True,
+                "loaded": False,
+                "model": None
+            })
+
+        config = model_manager.get_current_model_config()
+        return JSONResponse(content={
+            "success": True,
+            "loaded": True,
+            "model": {
+                "id": config.id,
+                "name": config.name,
+                "huggingFaceId": config.huggingface_id,
+                "description": config.description,
+                "inferenceSteps": config.inference_steps,
+                "supportsLora": config.supports_lora
+            } if config else None
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

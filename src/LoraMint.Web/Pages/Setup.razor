@@ -1,0 +1,724 @@
+@page "/setup"
+@using LoraMint.Web.Models
+@using LoraMint.Web.Services
+@using LoraMint.Web.Components.Shared
+@using System.Text.Json
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IModelConfigurationService ModelService
+@rendermode InteractiveServer
+
+<PageTitle>Setup - LoraMint</PageTitle>
+
+<div class="setup-wizard">
+    <div class="setup-header">
+        <div class="setup-logo">
+            <span style="background: linear-gradient(135deg, #8b5cf6, #ec4899, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; font-size: 1.5rem;">
+                LoraMint
+            </span>
+        </div>
+        <div class="setup-steps">
+            @for (int i = 1; i <= 4; i++)
+            {
+                var stepNum = i;
+                <div class="setup-step @(currentStep >= stepNum ? "active" : "") @(currentStep > stepNum ? "completed" : "")">
+                    <div class="step-number">@stepNum</div>
+                    <div class="step-label">@GetStepLabel(stepNum)</div>
+                </div>
+                @if (i < 4)
+                {
+                    <div class="step-connector @(currentStep > stepNum ? "completed" : "")"></div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="setup-content">
+        @switch (currentStep)
+        {
+            case 1:
+                <!-- Welcome Step -->
+                <div class="welcome-step">
+                    <h2 style="background: linear-gradient(135deg, #8b5cf6, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem;">
+                        Welcome to LoraMint
+                    </h2>
+                    <p style="font-size: 1.1rem; color: #a0a0b0; max-width: 600px; margin: 0 auto 2rem;">
+                        Train it once. Style it forever. Let's get you set up with your AI image generation environment.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 400px; margin: 0 auto;">
+                        <div class="feature-item">
+                            <span style="color: #8b5cf6;">1.</span> Check your system for GPU compatibility
+                        </div>
+                        <div class="feature-item">
+                            <span style="color: #ec4899;">2.</span> Choose a model based on your hardware
+                        </div>
+                        <div class="feature-item">
+                            <span style="color: #f97316;">3.</span> Download your chosen model
+                        </div>
+                        <div class="feature-item">
+                            <span style="color: #22d3ee;">4.</span> Start generating!
+                        </div>
+                    </div>
+                    <RadzenButton Text="Get Started"
+                                 ButtonStyle="ButtonStyle.Primary"
+                                 Click="@NextStep"
+                                 Style="margin-top: 2rem; padding: 1rem 3rem;" />
+                </div>
+                break;
+
+            case 2:
+                <!-- System Check Step -->
+                <div class="system-check-step">
+                    <h2 style="margin-bottom: 1.5rem;">System Check</h2>
+
+                    @if (isCheckingSystem)
+                    {
+                        <div style="text-align: center; padding: 2rem;">
+                            <div class="spin-ring"></div>
+                            <p style="color: #a0a0b0; margin-top: 1rem;">Detecting your hardware...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="system-info-cards">
+                            <!-- GPU Card -->
+                            <div class="system-card @(gpuInfo?.Available == true ? "success" : "warning")">
+                                <div class="card-icon">
+                                    @if (gpuInfo?.Available == true)
+                                    {
+                                        <span style="font-size: 2rem;">GPU</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size: 2rem;">CPU</span>
+                                    }
+                                </div>
+                                <div class="card-content">
+                                    @if (gpuInfo?.Available == true)
+                                    {
+                                        <div class="card-title">@gpuInfo.Name</div>
+                                        <div class="card-detail">
+                                            <span style="color: #22c55e;">@gpuInfo.TotalVramGb.ToString("F1") GB VRAM</span>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(gpuInfo.CudaVersion))
+                                        {
+                                            <div class="card-detail" style="font-size: 0.8rem; color: #606070;">
+                                                CUDA @gpuInfo.CudaVersion
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="card-title">No GPU Detected</div>
+                                        <div class="card-detail" style="color: #f97316;">
+                                            Running on CPU will be slower
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Recommendation Card -->
+                            <div class="system-card info">
+                                <div class="card-icon">
+                                    <span style="font-size: 2rem;">i</span>
+                                </div>
+                                <div class="card-content">
+                                    <div class="card-title">Recommendation</div>
+                                    <div class="card-detail">
+                                        @if (gpuInfo?.TotalVramGb >= 16)
+                                        {
+                                            <span style="color: #22c55e;">Your GPU can run all models, including Z-Image Turbo!</span>
+                                        }
+                                        else if (gpuInfo?.TotalVramGb >= 8)
+                                        {
+                                            <span>SDXL Base or SDXL Turbo recommended for your GPU.</span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: #f97316;">Limited VRAM. Consider SDXL Turbo for faster generation.</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
+                            <RadzenButton Text="Back"
+                                         ButtonStyle="ButtonStyle.Secondary"
+                                         Click="@PreviousStep"
+                                         Style="padding: 0.75rem 2rem;" />
+                            <RadzenButton Text="Continue"
+                                         ButtonStyle="ButtonStyle.Primary"
+                                         Click="@NextStep"
+                                         Style="padding: 0.75rem 2rem;" />
+                        </div>
+                    }
+                </div>
+                break;
+
+            case 3:
+                <!-- Model Selection Step -->
+                <div class="model-selection-step">
+                    <h2 style="margin-bottom: 0.5rem;">Select a Model</h2>
+                    <p style="color: #a0a0b0; margin-bottom: 1.5rem;">
+                        Choose the model that best fits your hardware and needs.
+                    </p>
+
+                    @if (isLoadingModels)
+                    {
+                        <div style="text-align: center; padding: 2rem;">
+                            <div class="spin-ring"></div>
+                            <p style="color: #a0a0b0; margin-top: 1rem;">Loading available models...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <ModelComparisonTable Models="@availableModels"
+                                             SelectedModelId="@selectedModelId"
+                                             AvailableVramGb="@gpuInfo?.TotalVramGb"
+                                             ShowDescriptions="true"
+                                             OnSelect="@OnModelSelected"
+                                             OnDownload="@OnModelDownload" />
+
+                        @if (isDownloading)
+                        {
+                            <div class="download-progress" style="margin-top: 1.5rem; padding: 1.5rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <span style="font-weight: 600;">@downloadMessage</span>
+                                    @if (downloadPercentage > 90)
+                                    {
+                                        <span style="font-family: 'JetBrains Mono', monospace;">@downloadPercentage.ToString("F0")%</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-family: 'JetBrains Mono', monospace; color: #8b5cf6;" class="pulse-text">Downloading...</span>
+                                    }
+                                </div>
+                                @if (downloadPercentage > 90)
+                                {
+                                    <RadzenProgressBar Value="@downloadPercentage"
+                                                      ShowValue="false"
+                                                      Style="height: 8px;"
+                                                      ProgressBarStyle="ProgressBarStyle.Primary" />
+                                }
+                                else
+                                {
+                                    <div class="indeterminate-progress"></div>
+                                }
+                                <div style="margin-top: 0.75rem; font-size: 0.85rem; color: #a0a0b0;">
+                                    This may take several minutes depending on your connection speed. Model files are ~7GB.
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <RadzenAlert AlertStyle="AlertStyle.Danger" Variant="Variant.Flat" Shade="Shade.Lighter" Style="margin-top: 1rem;">
+                                @errorMessage
+                            </RadzenAlert>
+                        }
+
+                        <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
+                            <RadzenButton Text="Back"
+                                         ButtonStyle="ButtonStyle.Secondary"
+                                         Click="@PreviousStep"
+                                         Disabled="@isDownloading"
+                                         Style="padding: 0.75rem 2rem;" />
+                            <RadzenButton Text="Continue"
+                                         ButtonStyle="ButtonStyle.Primary"
+                                         Click="@NextStep"
+                                         Disabled="@(string.IsNullOrEmpty(selectedModelId) || isDownloading)"
+                                         Style="padding: 0.75rem 2rem;" />
+                        </div>
+                    }
+                </div>
+                break;
+
+            case 4:
+                <!-- Complete Step -->
+                <div class="complete-step" style="text-align: center;">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">
+                        <span style="background: linear-gradient(135deg, #22c55e, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                            Ready!
+                        </span>
+                    </div>
+                    <h2 style="margin-bottom: 1rem;">Setup Complete</h2>
+                    <p style="color: #a0a0b0; max-width: 500px; margin: 0 auto 2rem;">
+                        Your LoraMint environment is configured and ready to use.
+                        You've selected <strong style="color: #8b5cf6;">@selectedModelName</strong> as your generation model.
+                    </p>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 400px; margin: 0 auto 2rem; text-align: left;">
+                        <div class="feature-item" style="color: #a0a0b0;">
+                            <span style="color: #22c55e;">&#10003;</span> GPU detected and configured
+                        </div>
+                        <div class="feature-item" style="color: #a0a0b0;">
+                            <span style="color: #22c55e;">&#10003;</span> Model downloaded and ready
+                        </div>
+                        <div class="feature-item" style="color: #a0a0b0;">
+                            <span style="color: #22c55e;">&#10003;</span> Environment optimized for your hardware
+                        </div>
+                    </div>
+
+                    @if (isCompletingSetup)
+                    {
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <div class="spin-ring" style="width: 30px; height: 30px;"></div>
+                            <span>Finalizing setup...</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <RadzenButton Text="Start Generating!"
+                                     ButtonStyle="ButtonStyle.Primary"
+                                     Click="@CompleteSetup"
+                                     Style="padding: 1rem 3rem; font-size: 1.1rem;" />
+                    }
+                </div>
+                break;
+        }
+    </div>
+</div>
+
+<style>
+    .setup-wizard {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .setup-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .setup-logo {
+        margin-bottom: 2rem;
+    }
+
+    .setup-steps {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .setup-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        opacity: 0.5;
+        transition: opacity 0.3s;
+    }
+
+    .setup-step.active {
+        opacity: 1;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(139, 92, 246, 0.2);
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', monospace;
+        transition: all 0.3s;
+    }
+
+    .setup-step.active .step-number {
+        background: linear-gradient(135deg, #8b5cf6, #ec4899);
+        border-color: transparent;
+    }
+
+    .setup-step.completed .step-number {
+        background: #22c55e;
+        border-color: transparent;
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+        color: #606070;
+        margin-top: 0.5rem;
+    }
+
+    .setup-step.active .step-label {
+        color: #f0f0f5;
+    }
+
+    .step-connector {
+        width: 60px;
+        height: 2px;
+        background: rgba(139, 92, 246, 0.2);
+        margin-bottom: 1.5rem;
+        transition: background 0.3s;
+    }
+
+    .step-connector.completed {
+        background: #22c55e;
+    }
+
+    .setup-content {
+        background: rgba(30, 30, 40, 0.5);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-radius: 12px;
+        padding: 2rem;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1rem;
+        color: #f0f0f5;
+    }
+
+    .system-info-cards {
+        display: flex;
+        gap: 1.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .system-card {
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        min-width: 280px;
+    }
+
+    .system-card.success {
+        border-color: rgba(34, 197, 94, 0.5);
+    }
+
+    .system-card.warning {
+        border-color: rgba(249, 115, 22, 0.5);
+    }
+
+    .system-card.info {
+        border-color: rgba(34, 211, 238, 0.5);
+    }
+
+    .card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 60px;
+        color: #8b5cf6;
+    }
+
+    .card-content {
+        flex: 1;
+    }
+
+    .card-title {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-detail {
+        color: #a0a0b0;
+        font-size: 0.9rem;
+    }
+
+    .spin-ring {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        position: relative;
+        margin: 0 auto;
+    }
+
+    .spin-ring::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: #8b5cf6;
+        border-right-color: #ec4899;
+        animation: spin-anim 1s linear infinite;
+    }
+
+    @@keyframes spin-anim {
+        to { transform: rotate(360deg); }
+    }
+
+    .indeterminate-progress {
+        height: 8px;
+        background: rgba(139, 92, 246, 0.2);
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .indeterminate-progress::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, #8b5cf6, #ec4899, #f97316);
+        border-radius: 4px;
+        animation: indeterminate-slide 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes indeterminate-slide {
+        0% { left: -40%; }
+        100% { left: 100%; }
+    }
+
+    .pulse-text {
+        animation: pulse-opacity 1.5s ease-in-out infinite;
+    }
+
+    @@keyframes pulse-opacity {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+
+@code {
+    private int currentStep = 1;
+    private bool isCheckingSystem = false;
+    private bool isLoadingModels = false;
+    private bool isDownloading = false;
+    private bool isCompletingSetup = false;
+
+    private GpuInfo? gpuInfo;
+    private List<ModelInfo> availableModels = new();
+    private string? selectedModelId;
+    private string selectedModelName = "";
+
+    private double downloadPercentage = 0;
+    private string downloadMessage = "";
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if setup is already complete
+        var settings = await ModelService.GetSettingsAsync();
+        if (settings.SetupComplete && !string.IsNullOrEmpty(settings.SelectedModelId))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+    }
+
+    private string GetStepLabel(int step) => step switch
+    {
+        1 => "Welcome",
+        2 => "System",
+        3 => "Model",
+        4 => "Complete",
+        _ => ""
+    };
+
+    private async Task NextStep()
+    {
+        if (currentStep == 1)
+        {
+            currentStep = 2;
+            await CheckSystem();
+        }
+        else if (currentStep == 2)
+        {
+            currentStep = 3;
+            await LoadModels();
+        }
+        else if (currentStep == 3 && !string.IsNullOrEmpty(selectedModelId))
+        {
+            currentStep = 4;
+        }
+    }
+
+    private void PreviousStep()
+    {
+        if (currentStep > 1)
+            currentStep--;
+    }
+
+    private async Task CheckSystem()
+    {
+        isCheckingSystem = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<GpuInfoResponse>("/api/system/gpu");
+            if (response?.Success == true)
+            {
+                gpuInfo = new GpuInfo
+                {
+                    Available = response.Available,
+                    Name = response.Name ?? "Unknown",
+                    TotalVramGb = response.TotalVramGb,
+                    FreeVramGb = response.FreeVramGb,
+                    CudaVersion = response.CudaVersion
+                };
+            }
+            else
+            {
+                gpuInfo = new GpuInfo { Available = false };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking system: {ex.Message}");
+            gpuInfo = new GpuInfo { Available = false };
+        }
+
+        isCheckingSystem = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadModels()
+    {
+        isLoadingModels = true;
+        StateHasChanged();
+
+        try
+        {
+            availableModels = await ModelService.GetAvailableModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading models: {ex.Message}");
+            errorMessage = "Failed to load models. Please check your connection.";
+        }
+
+        isLoadingModels = false;
+        StateHasChanged();
+    }
+
+    private Task OnModelSelected(ModelInfo model)
+    {
+        selectedModelId = model.Id;
+        selectedModelName = model.Name;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task OnModelDownload(ModelInfo model)
+    {
+        isDownloading = true;
+        downloadPercentage = 0;
+        downloadMessage = $"Starting download of {model.Name}...";
+        errorMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsync($"/api/models/{model.Id}/download", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (string.IsNullOrEmpty(line) || !line.StartsWith("data: "))
+                        continue;
+
+                    var json = line.Substring(6);
+                    var progress = JsonSerializer.Deserialize<DownloadProgressEvent>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (progress != null)
+                    {
+                        downloadPercentage = progress.Percentage;
+                        downloadMessage = progress.Message ?? "Downloading...";
+
+                        if (progress.Event == "complete")
+                        {
+                            // Refresh models list
+                            await LoadModels();
+                            selectedModelId = model.Id;
+                            selectedModelName = model.Name;
+                            break;
+                        }
+                        else if (progress.Event == "error")
+                        {
+                            errorMessage = progress.Error ?? "Download failed";
+                            break;
+                        }
+
+                        StateHasChanged();
+                    }
+                }
+            }
+            else
+            {
+                errorMessage = "Failed to start download";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Download error: {ex.Message}";
+        }
+
+        isDownloading = false;
+        StateHasChanged();
+    }
+
+    private async Task CompleteSetup()
+    {
+        if (string.IsNullOrEmpty(selectedModelId))
+            return;
+
+        isCompletingSetup = true;
+        StateHasChanged();
+
+        try
+        {
+            // Save settings
+            var settings = await ModelService.GetSettingsAsync();
+            settings.SelectedModelId = selectedModelId;
+            settings.SetupComplete = true;
+            await ModelService.SaveSettingsAsync(settings);
+
+            // Load the model
+            var loadResponse = await Http.PostAsync($"/api/models/{selectedModelId}/load", null);
+
+            // Navigate to home
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error completing setup: {ex.Message}";
+            isCompletingSetup = false;
+            StateHasChanged();
+        }
+    }
+
+    // Response classes
+    private class GpuInfoResponse
+    {
+        public bool Success { get; set; }
+        public bool Available { get; set; }
+        public string? Name { get; set; }
+        public double TotalVramGb { get; set; }
+        public double FreeVramGb { get; set; }
+        public string? CudaVersion { get; set; }
+    }
+
+    private class DownloadProgressEvent
+    {
+        public string Event { get; set; } = "";
+        public string? ModelId { get; set; }
+        public double Percentage { get; set; }
+        public double DownloadedMb { get; set; }
+        public double TotalMb { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+    }
+}

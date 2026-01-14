@@ -1,0 +1,259 @@
+@using LoraMint.Web.Models
+
+<div class="model-comparison-table">
+    <RadzenDataGrid Data="@Models"
+                    TItem="ModelInfo"
+                    AllowColumnResize="true"
+                    Style="margin-bottom: 1rem;">
+        <Columns>
+            <RadzenDataGridColumn TItem="ModelInfo" Property="Name" Title="Model" Width="200px">
+                <Template Context="model">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-weight: 600;">@model.Name</span>
+                        @if (model.Id == SelectedModelId)
+                        {
+                            <span style="background: linear-gradient(135deg, #8b5cf6, #ec4899); padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 500;">SELECTED</span>
+                        }
+                    </div>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="SpeedRating" Title="Speed" Width="110px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    <span class="@GetSpeedClass(model.SpeedRating)">
+                        @model.SpeedRating
+                    </span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="QualityRating" Title="Quality" Width="110px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    <span class="@GetQualityClass(model.QualityRating)">
+                        @model.QualityRating
+                    </span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="InferenceSteps" Title="Steps" Width="90px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    <span style="font-family: 'JetBrains Mono', monospace;">@model.InferenceSteps</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="MinVramGb" Title="VRAM Required" Width="160px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    <span class="@GetVramClass(model.MinVramGb)" style="font-family: 'JetBrains Mono', monospace;">
+                        @model.MinVramGb GB+
+                    </span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="EstimatedSizeGb" Title="Size" Width="90px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    <span style="font-family: 'JetBrains Mono', monospace; color: #a0a0b0;">~@model.EstimatedSizeGb GB</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Property="SupportsLora" Title="LoRA" Width="80px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    @if (model.SupportsLora)
+                    {
+                        <span style="color: #22c55e;">Yes</span>
+                    }
+                    else
+                    {
+                        <span style="color: #f97316;">No</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Title="Status" Width="130px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    @if (model.IsDownloaded)
+                    {
+                        <span style="color: #22c55e; font-size: 0.85rem;">Downloaded</span>
+                    }
+                    else
+                    {
+                        <span style="color: #a0a0b0; font-size: 0.85rem;">Not Downloaded</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="ModelInfo" Title="Action" Width="160px" TextAlign="TextAlign.Center">
+                <Template Context="model">
+                    @if (model.IsDownloaded)
+                    {
+                        @if (model.Id == SelectedModelId)
+                        {
+                            <RadzenButton Text="Selected"
+                                         ButtonStyle="ButtonStyle.Success"
+                                         Size="ButtonSize.Small"
+                                         Disabled="true"
+                                         Style="width: 100%;" />
+                        }
+                        else
+                        {
+                            <RadzenButton Text="Select"
+                                         ButtonStyle="ButtonStyle.Secondary"
+                                         Size="ButtonSize.Small"
+                                         Click="@(() => OnSelectModel(model))"
+                                         Style="width: 100%;" />
+                        }
+                    }
+                    else
+                    {
+                        @if (IsCompatible(model))
+                        {
+                            <RadzenButton Text="Download"
+                                         ButtonStyle="ButtonStyle.Primary"
+                                         Size="ButtonSize.Small"
+                                         Click="@(() => OnDownloadModel(model))"
+                                         Style="width: 100%;" />
+                        }
+                        else
+                        {
+                            <RadzenButton Text="Requires More VRAM"
+                                         ButtonStyle="ButtonStyle.Warning"
+                                         Size="ButtonSize.ExtraSmall"
+                                         Disabled="true"
+                                         Style="width: 100%; font-size: 0.65rem;" />
+                        }
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+
+    @if (ShowDescriptions)
+    {
+        <div style="margin-top: 1rem;">
+            @foreach (var model in Models)
+            {
+                <div style="padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(139, 92, 246, 0.1); border-radius: 8px; border-left: 3px solid @GetModelAccentColor(model.Id);">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">@model.Name</div>
+                    <div style="font-size: 0.85rem; color: #a0a0b0;">@model.Description</div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .model-comparison-table .speed-fast {
+        color: #22c55e;
+        font-weight: 500;
+    }
+    .model-comparison-table .speed-medium {
+        color: #f59e0b;
+        font-weight: 500;
+    }
+    .model-comparison-table .speed-slow {
+        color: #ef4444;
+        font-weight: 500;
+    }
+
+    .model-comparison-table .quality-excellent {
+        color: #8b5cf6;
+        font-weight: 600;
+    }
+    .model-comparison-table .quality-high {
+        color: #22c55e;
+        font-weight: 500;
+    }
+    .model-comparison-table .quality-good {
+        color: #f59e0b;
+        font-weight: 500;
+    }
+
+    .model-comparison-table .vram-low {
+        color: #22c55e;
+    }
+    .model-comparison-table .vram-medium {
+        color: #f59e0b;
+    }
+    .model-comparison-table .vram-high {
+        color: #ef4444;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public List<ModelInfo> Models { get; set; } = new();
+
+    [Parameter]
+    public string? SelectedModelId { get; set; }
+
+    [Parameter]
+    public double? AvailableVramGb { get; set; }
+
+    [Parameter]
+    public bool ShowDescriptions { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<ModelInfo> OnSelect { get; set; }
+
+    [Parameter]
+    public EventCallback<ModelInfo> OnDownload { get; set; }
+
+    private string GetSpeedClass(string rating) => rating switch
+    {
+        "Fast" => "speed-fast",
+        "Medium" => "speed-medium",
+        "Slow" => "speed-slow",
+        _ => ""
+    };
+
+    private string GetQualityClass(string rating) => rating switch
+    {
+        "Excellent" => "quality-excellent",
+        "High" => "quality-high",
+        "Good" => "quality-good",
+        _ => ""
+    };
+
+    private string GetVramClass(int vramGb)
+    {
+        if (AvailableVramGb.HasValue)
+        {
+            if (vramGb <= AvailableVramGb.Value * 0.7)
+                return "vram-low";
+            if (vramGb <= AvailableVramGb.Value)
+                return "vram-medium";
+            return "vram-high";
+        }
+
+        return vramGb switch
+        {
+            <= 8 => "vram-low",
+            <= 12 => "vram-medium",
+            _ => "vram-high"
+        };
+    }
+
+    private string GetModelAccentColor(string modelId) => modelId switch
+    {
+        "sdxl-base" => "#8b5cf6",
+        "sdxl-turbo" => "#ec4899",
+        "z-image-turbo" => "#f97316",
+        _ => "#22d3ee"
+    };
+
+    private bool IsCompatible(ModelInfo model)
+    {
+        if (!AvailableVramGb.HasValue)
+            return true;
+
+        return model.MinVramGb <= AvailableVramGb.Value;
+    }
+
+    private async Task OnSelectModel(ModelInfo model)
+    {
+        await OnSelect.InvokeAsync(model);
+    }
+
+    private async Task OnDownloadModel(ModelInfo model)
+    {
+        await OnDownload.InvokeAsync(model);
+    }
+}
