@@ -317,6 +317,11 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - **Fast mode for quicker training (~40% faster)**
 - **Cyberpunk terminal dark theme with gradient accents**
 - **Animated loading states (pulsing dots, spinning rings)**
+- **Multi-model selection (SDXL Base, SDXL Turbo, Z-Image Turbo)**
+- **Setup wizard for first-time users with GPU detection**
+- **Model comparison table with VRAM compatibility indicators**
+- **Settings page for model management**
+- **Network-friendly model downloads (throttled to prevent saturation)**
 
 ### 🔨 In Progress
 - LoRA training memory optimization for 10GB GPUs
@@ -328,6 +333,7 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Azure Blob Storage support
 - Batch generation
 - LoRA marketplace
+- Additional model support (SDXL Lightning, Playground v2.5, etc.)
 
 ---
 

@@ -58,22 +58,35 @@ The first time you run LoraMint, it will:
 2. **Install Dependencies** (~2-5 minutes)
    - Installs PyTorch, diffusers, FastAPI, etc.
 
-3. **Download AI Models** (~5-10 minutes, only when first generating)
-   - Downloads Stable Diffusion XL (~6GB)
-   - Only happens when you generate your first image
+3. **Setup Wizard** (first launch)
+   - Detects your GPU and available VRAM
+   - Shows model comparison table with compatibility indicators
+   - Lets you choose a model (SDXL Base, SDXL Turbo, or Z-Image Turbo)
+   - Downloads the selected model (~7-12GB depending on model)
 
-**Total first-run time:** ~3-5 minutes (excluding model download)
+**Total first-run time:** ~3-5 minutes + model download time
 
 ## 🎨 Using the Application
 
 Once started, open your browser to `https://localhost:5001`
+
+### Complete the Setup Wizard (First Time Only)
+
+1. **Welcome** - Introduction to LoraMint
+2. **System Check** - View your GPU info and available VRAM
+3. **Model Selection** - Choose from:
+   - **SDXL Turbo** (Recommended) - Fast, 4 steps, good quality
+   - **SDXL Base 1.0** - Medium speed, 30 steps, high quality
+   - **Z-Image Turbo** - Fast, excellent quality (requires 16GB VRAM)
+4. **Download** - Wait for model download (progress shown)
+5. **Complete** - You're ready to generate!
 
 ### Generate Your First Image
 
 1. Go to **Generate** page
 2. Enter a prompt (e.g., "a serene mountain landscape at sunset")
 3. Click **Generate Image**
-4. Wait ~30-60 seconds for generation
+4. Wait ~5-60 seconds depending on model (Turbo models are faster)
 5. View your image!
 
 ### Train Your First LoRA
@@ -86,6 +99,15 @@ Once started, open your browser to `https://localhost:5001`
 6. Use your LoRA in future generations!
 
 ## ⚙️ Configuration
+
+### Change Model
+
+After initial setup, you can change models via the **Settings** page:
+
+1. Click the **Settings** icon in the navigation
+2. Go to the **Models** tab
+3. Download additional models if needed
+4. Click **Select** to switch models or **Reload** to reload the current model
 
 ### Disable Auto-Start
 
