@@ -4,6 +4,7 @@
 @using Microsoft.JSInterop
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject IModelConfigurationService ModelService
 @rendermode InteractiveServer
 @implements IAsyncDisposable
 
@@ -179,7 +180,7 @@
                 }
 
                 <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--text-muted); margin-top: 0.5rem; font-family: var(--font-mono);">
-                    // Powered by Stable Diffusion XL
+                    // Powered by @(string.IsNullOrEmpty(currentModelName) ? "Stable Diffusion" : currentModelName)
                 </RadzenText>
 
                 @if (!string.IsNullOrEmpty(errorMessage))
@@ -242,13 +243,34 @@
     private int totalSteps = 30;
     private string progressMessage = "Starting generation...";
 
+    // Model info
+    private string? currentModelName;
+
     // JS interop reference
     private DotNetObjectReference<Generate>? dotNetHelper;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadLoras();
+        await LoadModelInfo();
         dotNetHelper = DotNetObjectReference.Create(this);
+    }
+
+    private async Task LoadModelInfo()
+    {
+        try
+        {
+            var model = await ModelService.GetSelectedModelAsync();
+            if (model != null)
+            {
+                currentModelName = model.Name;
+                totalSteps = model.InferenceSteps;
+            }
+        }
+        catch
+        {
+            // Silently ignore errors
+        }
     }
 
     private async Task LoadLoras()

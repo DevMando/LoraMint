@@ -17,7 +17,7 @@ A full-stack web application that lets users:
 | Frontend  | Blazor Server (C#)         |
 | Backend   | ASP.NET Core Minimal APIs  |
 | AI Engine | Python (FastAPI)           |
-| Models    | Stable Diffusion XL        |
+| Models    | SDXL Base, SDXL Turbo, Z-Image Turbo |
 | LoRA      | PEFT / Kohya Trainer       |
 | Format    | `.safetensors`             |
 | Storage   | Local File System          |
@@ -26,10 +26,23 @@ A full-stack web application that lets users:
 
 ## 🚀 How It Works
 
-1. **Generate**: User enters a prompt → Python backend generates image using Stable Diffusion
-2. **Train**: User uploads 1-5 reference images → LoRA model is trained and saved as `.safetensors`
-3. **Apply**: User selects trained LoRA(s) → Generates stylized images with custom style
-4. **Manage**: All LoRAs and images are organized per user for easy access
+1. **Setup**: First-time users are guided through a setup wizard to select and download a model
+2. **Generate**: User enters a prompt → Python backend generates image using the selected model
+3. **Train**: User uploads 1-5 reference images → LoRA model is trained and saved as `.safetensors`
+4. **Apply**: User selects trained LoRA(s) → Generates stylized images with custom style
+5. **Manage**: All LoRAs and images are organized per user for easy access
+
+---
+
+## 🤖 Supported Models
+
+| Model | Speed | Quality | Min VRAM | LoRA Support |
+|-------|-------|---------|----------|--------------|
+| **SDXL Base 1.0** | Medium (30 steps) | High | 8GB | Yes |
+| **SDXL Turbo** | Fast (4 steps) | Good | 8GB | Yes |
+| **Z-Image Turbo** | Fast (8 steps) | Excellent | 16GB | No |
+
+Models are downloaded on-demand through the setup wizard or settings page. Each model is ~7-12GB.
 
 ---
 
@@ -40,23 +53,26 @@ LoraMint/
 ├── src/
 │   ├── LoraMint.Web/              # Blazor Server application
 │   │   ├── Components/            # Blazor components
-│   │   ├── Models/                # Data models
-│   │   ├── Pages/                 # Razor pages
-│   │   ├── Services/              # C# services
+│   │   │   └── Shared/            # Reusable components (ModelComparisonTable)
+│   │   ├── Models/                # Data models (ModelConfig, etc.)
+│   │   ├── Pages/                 # Razor pages (Setup, Settings, Generate, etc.)
+│   │   ├── Services/              # C# services (ModelConfigurationService)
 │   │   └── Program.cs             # Minimal API endpoints
 │   │
 │   └── python-backend/            # Python FastAPI backend
 │       ├── models/                # Pydantic models
 │       ├── services/              # AI services
 │       │   ├── image_generator.py # SD image generation
+│       │   ├── model_manager.py   # Model downloading/loading
 │       │   └── lora_trainer.py    # LoRA training
 │       ├── utils/                 # Utilities
 │       └── main.py                # FastAPI application
 │
 ├── data/                          # Storage (gitignored)
+│   ├── models/                    # Downloaded AI models
 │   ├── loras/                     # User LoRA models
 │   ├── outputs/                   # Generated images
-│   └── temp/                      # Temporary files
+│   └── model-settings.json        # User preferences
 │
 ├── PROJECT_INSTRUCTIONS.md        # Detailed specifications
 ├── docker-compose.yml             # Docker orchestration
@@ -193,6 +209,12 @@ Services will be available at:
 - `GET /loras/{user_id}` - Get user's LoRAs
 - `GET /images/{user_id}` - Get user's images
 - `GET /health` - Health check and GPU status
+- `GET /models` - List available models with download status
+- `POST /models/{id}/download` - Download a model (SSE progress stream)
+- `POST /models/{id}/load` - Load model into GPU memory
+- `POST /models/unload` - Unload current model
+- `GET /models/current` - Get currently loaded model
+- `GET /system/gpu` - Get GPU information (VRAM, CUDA version)
 
 For detailed API documentation, visit `http://localhost:8000/docs` after starting the Python backend.
 
@@ -200,11 +222,27 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 
 ## 🎨 Features
 
+### Model Selection & Setup
+- First-time setup wizard with GPU detection
+- Model comparison table with VRAM requirements
+- Color-coded compatibility indicators (green/yellow/red based on VRAM)
+- On-demand model downloading with progress streaming
+- Dynamic "Powered by [Model Name]" label
+- Settings page for model management
+
+### Cyberpunk Terminal Theme
+- Dark theme with gradient mesh background
+- Purple/pink/orange gradient accents with cyan highlights
+- Terminal-style typography (JetBrains Mono)
+- Animated loading states with pulsing dots and spinning rings
+- Glowing UI elements and scanline effects
+
 ### Image Generation
-- Text-to-image using Stable Diffusion XL
+- Text-to-image using SDXL Base, SDXL Turbo, or Z-Image Turbo
 - Optional LoRA model application
 - Multiple LoRAs with adjustable strength
-- Real-time generation feedback
+- Real-time generation feedback with animated progress
+- Step counter with visual loading animations
 
 ### LoRA Training
 - Upload 1-5 reference images
@@ -239,8 +277,8 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
     "AutoInstallDependencies": true
   },
   "Storage": {
-    "LorasPath": "../../../data/loras",
-    "OutputsPath": "../../../data/outputs"
+    "LorasPath": "../../data/loras",
+    "OutputsPath": "../../data/outputs"
   }
 }
 ```
@@ -277,6 +315,13 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - **Real LoRA training using DreamBooth-style PEFT** (see Known Issues)
 - **Training UI with progress streaming and configurable settings**
 - **Fast mode for quicker training (~40% faster)**
+- **Cyberpunk terminal dark theme with gradient accents**
+- **Animated loading states (pulsing dots, spinning rings)**
+- **Multi-model selection (SDXL Base, SDXL Turbo, Z-Image Turbo)**
+- **Setup wizard for first-time users with GPU detection**
+- **Model comparison table with VRAM compatibility indicators**
+- **Settings page for model management**
+- **Network-friendly model downloads (throttled to prevent saturation)**
 
 ### 🔨 In Progress
 - LoRA training memory optimization for 10GB GPUs
@@ -288,6 +333,7 @@ For detailed API documentation, visit `http://localhost:8000/docs` after startin
 - Azure Blob Storage support
 - Batch generation
 - LoRA marketplace
+- Additional model support (SDXL Lightning, Playground v2.5, etc.)
 
 ---
 

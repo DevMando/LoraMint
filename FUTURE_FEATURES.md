@@ -7,35 +7,38 @@ This document tracks planned features and improvements for future development.
 ## System Configuration & Setup Page
 
 **Priority:** High
-**Status:** Planned
+**Status:** Implemented
 
 A dedicated configuration page to help users set up and troubleshoot their installation.
 
 ### Features
 
 #### System Requirements Check
+- [x] CUDA/GPU detection (NVIDIA GPU check)
+- [x] Available VRAM display
+- [x] PyTorch CUDA vs CPU detection
 - [ ] .NET SDK version detection and validation
 - [ ] Python version detection (3.10+ required)
-- [ ] CUDA/GPU detection (NVIDIA GPU check)
-- [ ] Available VRAM display
 - [ ] Disk space check for AI models (~10GB required)
-- [ ] PyTorch CUDA vs CPU detection
 
 #### One-Click Setup Actions
+- [x] "Download Model" button - download selected model with progress streaming
+- [x] "Select/Load Model" button - load model into GPU memory
 - [ ] "Install CUDA PyTorch" button - automatically installs correct PyTorch version for user's GPU
-- [ ] "Download SDXL Model" button - pre-cache the model to avoid first-run delays
 - [ ] "Verify Installation" button - run diagnostics and report issues
 - [ ] "Reinstall Dependencies" button - clean reinstall of Python packages
 
 #### Status Dashboard
+- [x] GPU status (available/not detected/VRAM usage/CUDA version)
+- [x] Model status (downloaded/not downloaded/loading)
+- [x] Current model display with specs
 - [ ] Python backend status indicator (running/stopped/error)
-- [ ] GPU status (available/not detected/VRAM usage)
-- [ ] Model status (downloaded/not downloaded/loading)
-- [ ] Current configuration display
 - [ ] Real-time health monitoring
 
 #### Configuration Options
-- [ ] Select AI model (SDXL, SD Turbo, SDXL Lightning, etc.)
+- [x] Select AI model (SDXL Base, SDXL Turbo, Z-Image Turbo)
+- [x] Model comparison table with VRAM requirements
+- [x] Color-coded compatibility indicators
 - [ ] Set generation defaults (inference steps, guidance scale, resolution)
 - [ ] Configure storage paths (LoRAs, outputs)
 - [ ] Adjust timeout settings
@@ -45,9 +48,39 @@ A dedicated configuration page to help users set up and troubleshoot their insta
 
 Issues encountered during initial setup that this page should help prevent:
 1. PyTorch CPU-only installation (need CUDA version for GPU support)
-2. Model download timeouts on first run
+2. Model download timeouts on first run - **Fixed: 60-minute timeout**
 3. CUDA version compatibility with PyTorch
-4. Insufficient VRAM for large models
+4. Insufficient VRAM for large models - **Fixed: VRAM compatibility indicators**
+5. Network saturation during downloads - **Fixed: Single-threaded downloads**
+
+---
+
+## UI Theme & Styling
+
+**Priority:** Medium
+**Status:** Implemented
+
+A cyberpunk terminal-inspired dark theme with gradient accents.
+
+### Implemented Features
+- [x] Dark theme base (Radzen dark-base.css)
+- [x] Cyberpunk gradient color palette (purple/pink/orange)
+- [x] Cyan accent color for highlights
+- [x] Terminal-style typography (JetBrains Mono font)
+- [x] Gradient mesh background with scanline effect
+- [x] Styled cards with gradient accent lines
+- [x] Gradient buttons with glow effects
+- [x] Custom scrollbar styling
+- [x] Terminal prompt prefix (`>_`) on headings
+- [x] Animated loading dots (pulsing gradient colors)
+- [x] Spinning ring animation for generation progress
+- [x] Step counter with digital font (Orbitron)
+- [x] Glowing UI elements
+
+### Remaining Features
+- [ ] Theme switcher (light/dark modes)
+- [ ] Custom color palette options
+- [ ] Reduced motion accessibility option
 
 ---
 
@@ -63,6 +96,8 @@ Real-time progress updates are implemented using Server-Sent Events (SSE) instea
 - [x] Phase indicators for training (class_generation, loading_models, training, saving)
 - [x] Loss value display during training
 - [x] Percentage completion
+- [x] Animated loading states (pulsing dots, spinning ring)
+- [x] Digital step counter display
 
 ### Remaining Features
 - [ ] Estimated time remaining
@@ -177,14 +212,21 @@ Real-time progress updates are implemented using Server-Sent Events (SSE) instea
 ## Model Management
 
 **Priority:** Medium
-**Status:** Planned
+**Status:** Implemented
 
-### Features
-- [ ] Download/manage multiple base models
-- [ ] Model switching without restart
+### Implemented Features
+- [x] Download/manage multiple base models (SDXL Base, SDXL Turbo, Z-Image Turbo)
+- [x] Model switching without restart (load/unload via Settings page)
+- [x] Model information display (size, speed rating, quality rating, VRAM requirements)
+- [x] Automatic model recommendations based on VRAM (color-coded compatibility)
+- [x] Setup wizard for first-time model selection
+- [x] Progress streaming for model downloads
+- [x] Network-friendly downloads (single-threaded to prevent saturation)
+
+### Remaining Features
 - [ ] Custom model import (safetensors, ckpt)
-- [ ] Model information display (size, type, capabilities)
-- [ ] Automatic model recommendations based on VRAM
+- [ ] Delete downloaded models
+- [ ] Additional models (SDXL Lightning, Playground v2.5, RealVisXL, etc.)
 
 ---
 

@@ -21,10 +21,27 @@ builder.Services.AddHttpClient<PythonBackendService>(client =>
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
-    return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
+    return new HttpClient
+    {
+        BaseAddress = new Uri(navigationManager.BaseUri),
+        Timeout = TimeSpan.FromMinutes(60) // Allow long operations like model downloads
+    };
 });
 
 builder.Services.AddSingleton<FileStorageService>();
+
+// Add Model Configuration Service
+builder.Services.AddSingleton<IModelConfigurationService>(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var httpClient = new HttpClient
+    {
+        BaseAddress = new Uri(config["PythonBackend:BaseUrl"] ?? "http://localhost:8000"),
+        Timeout = TimeSpan.FromMinutes(5)
+    };
+    var logger = sp.GetRequiredService<ILogger<ModelConfigurationService>>();
+    return new ModelConfigurationService(config, httpClient, logger);
+});
 
 // Add Python backend hosted service
 builder.Services.AddHostedService<PythonBackendHostedService>();
@@ -73,6 +90,35 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 app.UseAntiforgery();
+
+// Setup redirect middleware - redirect to /setup if setup is not complete
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+
+    // Skip middleware for setup page, API endpoints, static files
+    if (path.StartsWith("/setup") ||
+        path.StartsWith("/api/") ||
+        path.StartsWith("/_") ||
+        path.StartsWith("/outputs") ||
+        path.StartsWith("/loras") ||
+        path.Contains("."))
+    {
+        await next();
+        return;
+    }
+
+    var modelService = context.RequestServices.GetRequiredService<IModelConfigurationService>();
+    var settings = await modelService.GetSettingsAsync();
+
+    if (!settings.SetupComplete)
+    {
+        context.Response.Redirect("/setup");
+        return;
+    }
+
+    await next();
+});
 
 // Minimal API Endpoints
 app.MapPost("/api/generate", async (GenerateRequest request, PythonBackendService pythonService) =>
@@ -328,6 +374,165 @@ app.MapGet("/api/images/{userId}", (string userId, FileStorageService storageSer
     {
         var images = storageService.GetUserImages(userId);
         return Results.Ok(new { success = true, images });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+// Model Management API Endpoints
+app.MapGet("/api/models", async (IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    try
+    {
+        var response = await httpClient.GetAsync($"{pythonBaseUrl}/models");
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapGet("/api/models/current", async (IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    try
+    {
+        var response = await httpClient.GetAsync($"{pythonBaseUrl}/models/current");
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapGet("/api/models/{modelId}/status", async (string modelId, IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    try
+    {
+        var response = await httpClient.GetAsync($"{pythonBaseUrl}/models/{modelId}/status");
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/models/{modelId}/download", async (string modelId, HttpContext context, IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+
+    context.Response.ContentType = "text/event-stream";
+    context.Response.Headers.Append("Cache-Control", "no-cache");
+    context.Response.Headers.Append("Connection", "keep-alive");
+
+    using var httpClient = new HttpClient();
+    httpClient.Timeout = TimeSpan.FromMinutes(30); // Model download can take a while
+
+    try
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{pythonBaseUrl}/models/{modelId}/download");
+        using var response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            context.RequestAborted
+        );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorData = JsonSerializer.Serialize(new
+            {
+                @event = "error",
+                modelId,
+                error = $"Python backend returned status {response.StatusCode}"
+            });
+            await context.Response.WriteAsync($"data: {errorData}\n\n");
+            return;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(context.RequestAborted);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream && !context.RequestAborted.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(context.RequestAborted);
+            if (line != null)
+            {
+                await context.Response.WriteAsync(line + "\n");
+                await context.Response.Body.FlushAsync(context.RequestAborted);
+            }
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // Request was cancelled
+    }
+    catch (Exception ex)
+    {
+        var errorData = JsonSerializer.Serialize(new
+        {
+            @event = "error",
+            modelId,
+            error = ex.Message
+        });
+        await context.Response.WriteAsync($"data: {errorData}\n\n");
+    }
+});
+
+app.MapPost("/api/models/{modelId}/load", async (string modelId, IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    httpClient.Timeout = TimeSpan.FromMinutes(10); // Model loading can take a while
+    try
+    {
+        var response = await httpClient.PostAsync($"{pythonBaseUrl}/models/{modelId}/load", null);
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/models/unload", async (IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    try
+    {
+        var response = await httpClient.PostAsync($"{pythonBaseUrl}/models/unload", null);
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapGet("/api/system/gpu", async (IConfiguration config) =>
+{
+    var pythonBaseUrl = config["PythonBackend:BaseUrl"] ?? "http://localhost:8000";
+    using var httpClient = new HttpClient();
+    try
+    {
+        var response = await httpClient.GetAsync($"{pythonBaseUrl}/system/gpu");
+        var content = await response.Content.ReadAsStringAsync();
+        return Results.Content(content, "application/json");
     }
     catch (Exception ex)
     {

@@ -75,11 +75,19 @@ The application will:
 
 ## Features
 
+### Cyberpunk Terminal Theme
+- Dark theme with gradient mesh background (purple/pink/orange)
+- Terminal-style typography using JetBrains Mono font
+- Animated loading states with pulsing dots and spinning rings
+- Glowing UI elements and gradient accent lines
+- Cyan highlights for active states and links
+
 ### Generate Images
 - Enter text prompts to generate images
 - Select optional LoRA models to apply
 - View generated images in real-time
 - Multiple LoRAs with adjustable strength
+- Animated progress with step counter display
 
 ### Train LoRA
 - Upload 1-5 reference images
@@ -112,8 +120,8 @@ The application will:
     "AutoInstallDependencies": true
   },
   "Storage": {
-    "LorasPath": "../../../data/loras",
-    "OutputsPath": "../../../data/outputs"
+    "LorasPath": "../../data/loras",
+    "OutputsPath": "../../data/outputs"
   }
 }
 ```
@@ -191,10 +199,10 @@ LoraMint.Web/
 ├── BackgroundServices/
 │   └── PythonBackendHostedService.cs  # Auto-start service
 ├── Components/
-│   ├── App.razor
+│   ├── App.razor                      # HTML head with fonts & theme
 │   ├── Routes.razor
 │   └── Layout/
-│       ├── MainLayout.razor
+│       ├── MainLayout.razor           # Header, sidebar, body layout
 │       └── NavMenu.razor
 ├── Models/
 │   ├── GenerateRequest.cs
@@ -202,13 +210,16 @@ LoraMint.Web/
 │   └── ImageInfo.cs
 ├── Pages/
 │   ├── Home.razor
-│   ├── Generate.razor
+│   ├── Generate.razor                 # With animated loading states
 │   ├── TrainLora.razor
 │   ├── MyImages.razor
 │   └── MyLoras.razor
 ├── Services/
 │   ├── PythonBackendService.cs
 │   └── FileStorageService.cs
+├── wwwroot/
+│   └── css/
+│       └── app.css                    # Cyberpunk terminal theme
 ├── Program.cs                         # Minimal APIs & service registration
 ├── appsettings.json                   # Configuration
 └── appsettings.Development.json       # Dev configuration
