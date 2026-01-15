@@ -10,6 +10,30 @@ A full-stack web application that lets users:
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="./docs/images/welcome.png" alt="Welcome Screen" width="700">
+</p>
+<p align="center"><em>Welcome screen with model status</em></p>
+
+<p align="center">
+  <img src="./docs/images/setup_wizard.png" alt="Setup Wizard" width="700">
+</p>
+<p align="center"><em>First-time setup wizard with model selection</em></p>
+
+<p align="center">
+  <img src="./docs/images/settings.png" alt="Settings Page" width="700">
+</p>
+<p align="center"><em>Settings page for model management</em></p>
+
+<p align="center">
+  <img src="./docs/images/image_gallery.png" alt="Image Gallery" width="700">
+</p>
+<p align="center"><em>Image gallery with generated outputs</em></p>
+
+---
+
 ## 🧱 Tech Stack
 
 | Layer     | Technology                |
