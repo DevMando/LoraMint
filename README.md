@@ -8,6 +8,11 @@ A full-stack web application that lets users:
 - Apply trained LoRAs to future image generations
 - View and manage image outputs and LoRA files
 
+## Why build it? 
+Everyone is hosting their image generation applications on huggingface, and I understand why - the GPU power that can be purchased, but I wanted to focus on a more completed software application build.
+I don't know much about gradio at the moment, but it seems like its a quick framework to quickly get something up on the screen. Focusing on my Blazor Framework experience, I though building a front-end more polished would be cool.
+Enjoy the local image generation with NO TOKEN COST :)
+
 ---
 
 ## Screenshots
@@ -456,18 +461,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🙏 Acknowledgments
-
-- Stable Diffusion by Stability AI
-- diffusers library by Hugging Face
-- PEFT for LoRA implementation
-- Blazor framework by Microsoft
-
----
-
-## 📞 Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Check existing documentation
-- Review API documentation at `/docs`
