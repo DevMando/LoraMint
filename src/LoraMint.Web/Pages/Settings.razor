@@ -280,9 +280,15 @@
     private string statusMessage = "";
     private string errorMessage = "";
 
-    protected override async Task OnInitializedAsync()
+    private bool hasInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadData();
+        if (firstRender && !hasInitialized)
+        {
+            hasInitialized = true;
+            await LoadData();
+        }
     }
 
     private async Task LoadData()
@@ -312,6 +318,19 @@
             // Load current model
             currentModel = await ModelService.GetSelectedModelAsync();
             selectedModelId = currentModel?.Id;
+
+            // Auto-load the selected model if one is configured
+            if (currentModel != null)
+            {
+                try
+                {
+                    await Http.PostAsync($"/api/models/{currentModel.Id}/load", null);
+                }
+                catch
+                {
+                    // Model load failure is non-critical here, user can retry manually
+                }
+            }
 
             // Load storage path
             modelsPath = ModelService.GetModelsPath();

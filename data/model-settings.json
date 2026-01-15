@@ -1,5 +1,5 @@
 {
-  "selectedModelId": "sdxl-turbo",
+  "selectedModelId": "sdxl-base",
   "modelsPath": "../../data/models",
   "setupComplete": true,
   "downloadedModels": []
